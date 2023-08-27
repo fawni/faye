@@ -1,8 +1,9 @@
 pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     println!("\x1b[1;35mfaye\x1b[0m v0.0.1\npress \x1b[31mctrl+c\x1b[0m to exit\n");
+
     loop {
         let line = readline("-> ")?;
-        println!("{line}");
+        run(line)?;
     }
 }
 
@@ -10,10 +11,25 @@ fn readline(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     use std::io::Write;
 
     print!("{prompt}");
-    std::io::stdout().flush()?;
+    std::io::stdout().flush().ok();
 
     let mut buffer = String::new();
     std::io::stdin().read_line(&mut buffer)?;
 
-    Ok(buffer.trim().to_string())
+    Ok(buffer.trim().to_owned())
+}
+
+fn run(line: String) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::lexer::Lexer;
+
+    let lex = Lexer::new(&line);
+
+    lex.into_iter().for_each(|token| {
+        match token {
+            Ok(token) => println!("{:?}", token),
+            Err(err) => println!("\x1b[1;31merror\x1b[0m: {}", err),
+        };
+    });
+
+    Ok(())
 }
