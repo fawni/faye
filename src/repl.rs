@@ -21,13 +21,13 @@ fn readline(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
 
 fn run(line: &str) {
     use crate::lexer::Lexer;
+    use crate::parser::parse;
 
-    let lex = Lexer::new(line);
+    let mut lex = Lexer::new(line);
+    let ast = parse(&mut lex);
 
-    lex.into_iter().for_each(|token| {
-        match token {
-            Ok(token) => println!("{token:?}"),
-            Err(err) => println!("\x1b[1;31merror\x1b[0m: {err}"),
-        };
-    });
+    match ast {
+        Ok(ast) => println!("{ast:?}"),
+        Err(err) => println!("\x1b[1;31merror\x1b[0m: {err}"),
+    }
 }
