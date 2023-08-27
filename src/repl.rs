@@ -3,7 +3,7 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let line = readline("-> ")?;
-        run(line)?;
+        run(&line);
     }
 }
 
@@ -19,17 +19,15 @@ fn readline(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     Ok(buffer.trim().to_owned())
 }
 
-fn run(line: String) -> Result<(), Box<dyn std::error::Error>> {
+fn run(line: &str) {
     use crate::lexer::Lexer;
 
-    let lex = Lexer::new(&line);
+    let lex = Lexer::new(line);
 
     lex.into_iter().for_each(|token| {
         match token {
-            Ok(token) => println!("{:?}", token),
-            Err(err) => println!("\x1b[1;31merror\x1b[0m: {}", err),
+            Ok(token) => println!("{token:?}"),
+            Err(err) => println!("\x1b[1;31merror\x1b[0m: {err}"),
         };
     });
-
-    Ok(())
 }

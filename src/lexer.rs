@@ -1,11 +1,20 @@
 pub struct Lexer<'a> {
     pub pos: usize,
+    pub line: usize,
     pub input: &'a str,
 }
 
 impl Lexer<'_> {
-    pub fn new(input: &str) -> Lexer {
-        Lexer { pos: 0, input }
+    pub const fn new(input: &str) -> Lexer {
+        Lexer {
+            pos: 0,
+            line: 0,
+            input,
+        }
+    }
+
+    pub const fn location(&self, len: usize) -> (usize, usize) {
+        (self.line, self.pos - len)
     }
 
     pub fn current(&self) -> Option<char> {
@@ -22,16 +31,19 @@ impl Lexer<'_> {
         Symbol::try_from(c).is_ok()
     }
 
-    pub fn read_next(&mut self) -> Result<Token, LexerError> {
+    pub fn read_next(&mut self) -> Result<Token, Error> {
         while self
             .current()
-            .ok_or(LexerError::Other)?
+            .ok_or_else(|| Error::new(ErrorKind::Other, self.location(0)))?
             .is_ascii_whitespace()
         {
             self.advance();
         }
 
-        match self.current().ok_or(LexerError::Other)? {
+        match self
+            .current()
+            .ok_or_else(|| Error::new(ErrorKind::Other, self.location(0)))?
+        {
             '(' => {
                 self.advance();
                 Ok(Token::OpenParen)
@@ -50,8 +62,15 @@ impl Lexer<'_> {
                     s.push(c);
                     self.advance();
                 }
-                let n = s.parse::<f64>()?;
+                let n = s.parse::<f64>().ok().ok_or_else(|| {
+                    Error::new(ErrorKind::InvalidNumber(s.clone()), self.location(s.len()))
+                })?;
                 Ok(Token::Number(n))
+            }
+            '\n' => {
+                self.advance();
+                self.line += 1;
+                self.read_next()
             }
             sym if Self::is_symbol(sym) => {
                 self.advance();
@@ -67,14 +86,17 @@ impl Lexer<'_> {
                     s.push(c);
                     self.advance();
                 }
-                Err(LexerError::UnknownKeyword(s))
+                Err(Error::new(
+                    ErrorKind::UnknownKeyword(s.clone()),
+                    self.location(s.len()),
+                ))
             }
         }
     }
 }
 
 impl Iterator for Lexer<'_> {
-    type Item = Result<Token, LexerError>;
+    type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.input.len() {
@@ -93,7 +115,7 @@ pub enum Token {
     Number(f64),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Symbol {
     Plus,
     Minus,
@@ -102,7 +124,7 @@ pub enum Symbol {
 }
 
 impl TryFrom<char> for Symbol {
-    type Error = LexerError;
+    type Error = ErrorKind;
 
     fn try_from(c: char) -> Result<Self, Self::Error> {
         match c {
@@ -115,33 +137,43 @@ impl TryFrom<char> for Symbol {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum LexerError {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Error {
+    pub kind: ErrorKind,
+    pub location: (usize, usize),
+}
+
+impl Error {
+    pub const fn new(kind: ErrorKind, location: (usize, usize)) -> Self {
+        Self { kind, location }
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (line, col) = self.location;
+        write!(f, "{}:{} {}", line, col, self.kind)
+    }
+}
+
+impl std::error::Error for Error {}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ErrorKind {
     InvalidSymbol(char),
-    InvalidNumber(Option<String>),
+    InvalidNumber(String),
     UnknownKeyword(String),
     Other,
 }
 
-impl std::fmt::Display for LexerError {
+impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidSymbol(c) => write!(f, "Invalid Symbol: '{c}' is not a valid symbol"),
-            Self::InvalidNumber(n) => match n {
-                Some(n) => write!(f, "Invalid Number: '{n}' is not a valid number"),
-                None => write!(f, "Invalid Number"),
-            },
+            Self::InvalidNumber(s) => write!(f, "Invalid Number: could not parse number '{s}'"),
             Self::UnknownKeyword(s) => write!(f, "Unknown Keyword: '{s}' is not a valid keyword"),
             Self::Other => write!(f, "ummmmmm... something went wrong idk"),
         }
-    }
-}
-
-impl std::error::Error for LexerError {}
-
-impl From<std::num::ParseFloatError> for LexerError {
-    fn from(_: std::num::ParseFloatError) -> Self {
-        Self::InvalidNumber(None)
     }
 }
 
@@ -150,16 +182,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_lexer() {
-        let mut lexer = Lexer::new("(+ 14 25.5 333)");
+    fn lexer() {
+        let mut lexer = Lexer::new("(+ 14 25.5 333 (* 2 5))");
 
         assert_eq!(lexer.next(), Some(Ok(Token::OpenParen)));
         assert_eq!(lexer.next(), Some(Ok(Token::Symbol(Symbol::Plus))));
         assert_eq!(lexer.next(), Some(Ok(Token::Number(14.0))));
         assert_eq!(lexer.next(), Some(Ok(Token::Number(25.5))));
         assert_eq!(lexer.next(), Some(Ok(Token::Number(333.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::OpenParen)));
+        assert_eq!(lexer.next(), Some(Ok(Token::Symbol(Symbol::Multiply))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(2.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(5.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::CloseParen)));
         assert_eq!(lexer.next(), Some(Ok(Token::CloseParen)));
         assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn parse_numbers() {
+        let mut lexer = Lexer::new("2 55 3.144 0.0001 1.1.1");
+
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(2.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(55.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(3.144))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(0.0001))));
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::new(
+                ErrorKind::InvalidNumber("1.1.1".to_owned()),
+                (0, 18),
+            )))
+        );
     }
 
     #[test]
