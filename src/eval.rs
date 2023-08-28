@@ -28,15 +28,15 @@ pub fn eval(ast: Node) -> Result<f64, Error> {
                 Symbol::Minus => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc - x)
-                    .ok_or(Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
                 Symbol::Multiply => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc * x)
-                    .ok_or(Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
                 Symbol::Divide => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc / x)
-                    .ok_or(Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
             }
         }
         Node(Expr::Symbol(sym), location) => {

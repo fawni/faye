@@ -124,13 +124,8 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Plus => 1,
-            Self::Minus => 1,
-            Self::Multiply => 1,
-            Self::Divide => 1,
-        }
+    pub const fn len(&self) -> usize {
+        1
     }
 }
 
