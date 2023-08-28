@@ -1,7 +1,7 @@
 pub struct Lexer<'a> {
-    pub pos: usize,
-    pub line: usize,
-    pub input: &'a str,
+    pos: usize,
+    line: usize,
+    input: &'a str,
 }
 
 impl Lexer<'_> {
@@ -17,21 +17,21 @@ impl Lexer<'_> {
         (self.line, self.pos - len)
     }
 
-    pub fn current(&self) -> Option<char> {
+    fn current(&self) -> Option<char> {
         self.input.chars().nth(self.pos)
     }
 
-    pub fn advance(&mut self) -> Option<char> {
+    fn advance(&mut self) -> Option<char> {
         let c = self.current();
         self.pos += 1;
         c
     }
 
-    pub fn is_symbol(c: char) -> bool {
+    fn is_symbol(c: char) -> bool {
         Symbol::try_from(c).is_ok()
     }
 
-    pub fn read_next(&mut self) -> Result<Token, Error> {
+    fn read(&mut self) -> Result<Token, Error> {
         while self
             .current()
             .ok_or_else(|| Error::new(ErrorKind::Other, self.location(0)))?
@@ -70,7 +70,7 @@ impl Lexer<'_> {
             '\n' => {
                 self.advance();
                 self.line += 1;
-                self.read_next()
+                self.read()
             }
             sym if Self::is_symbol(sym) => {
                 self.advance();
@@ -102,7 +102,7 @@ impl Iterator for Lexer<'_> {
         if self.pos >= self.input.len() {
             None
         } else {
-            Some(self.read_next())
+            Some(self.read())
         }
     }
 }
@@ -115,12 +115,34 @@ pub enum Token {
     Number(f64),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Symbol {
     Plus,
     Minus,
     Multiply,
     Divide,
+}
+
+impl Symbol {
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Plus => 1,
+            Self::Minus => 1,
+            Self::Multiply => 1,
+            Self::Divide => 1,
+        }
+    }
+}
+
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Plus => write!(f, "+"),
+            Self::Minus => write!(f, "-"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+        }
+    }
 }
 
 impl TryFrom<char> for Symbol {
@@ -169,8 +191,8 @@ pub enum ErrorKind {
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidSymbol(c) => write!(f, "Invalid Symbol: '{c}' is not a valid symbol"),
-            Self::InvalidNumber(s) => write!(f, "Invalid Number: could not parse number '{s}'"),
+            Self::InvalidSymbol(c) => write!(f, "'{c}' is not a valid symbol"),
+            Self::InvalidNumber(s) => write!(f, "Could not parse number '{s}'"),
             Self::UnknownKeyword(s) => write!(f, "Unknown Keyword: '{s}' is not a valid keyword"),
             Self::Other => write!(f, "ummmmmm... something went wrong idk"),
         }
