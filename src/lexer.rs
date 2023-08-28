@@ -62,9 +62,11 @@ impl Lexer<'_> {
                     s.push(c);
                     self.advance();
                 }
-                let n = s.parse::<f64>().ok().ok_or_else(|| {
-                    Error::new(ErrorKind::InvalidNumber(s.clone()), self.location(s.len()))
-                })?;
+                let len = s.len();
+                let n = s
+                    .parse::<f64>()
+                    .ok()
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidNumber(s), self.location(len)))?;
                 Ok(Token::Number(n))
             }
             '\n' => {
@@ -86,10 +88,8 @@ impl Lexer<'_> {
                     s.push(c);
                     self.advance();
                 }
-                Err(Error::new(
-                    ErrorKind::UnknownKeyword(s.clone()),
-                    self.location(s.len()),
-                ))
+                let len = s.len();
+                Err(Error::new(ErrorKind::UnknownKeyword(s), self.location(len)))
             }
         }
     }

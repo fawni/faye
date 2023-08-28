@@ -11,13 +11,13 @@ pub fn eval(ast: Node) -> Result<f64, Error> {
                 return Err(Error::new(ErrorKind::MissingArguments, location));
             }
 
-            let Expr::Symbol(func) = list[0].clone() else {
+            let Node(Expr::Symbol(func), location) = list[0] else {
                 return Err(Error::new(ErrorKind::InvalidFunction, location));
             };
 
             let args = list[1..]
                 .iter()
-                .map(|expr| match eval(Node(expr.clone(), location)) {
+                .map(|node| match eval(Node(node.clone().0, location)) {
                     Ok(n) => Ok(n),
                     Err(err) => Err(err),
                 })

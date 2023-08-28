@@ -7,7 +7,7 @@ pub struct Node(pub Expr, pub (usize, usize));
 pub enum Expr {
     Number(f64),
     Symbol(Symbol),
-    List(Vec<Expr>),
+    List(Vec<Node>),
     CloseParen,
 }
 
@@ -18,6 +18,7 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
         }
         Some(Ok(Token::Symbol(sym))) => Ok(Node(Expr::Symbol(sym), lexer.location(sym.len()))),
         Some(Ok(Token::OpenParen)) => {
+            let location = lexer.location(1);
             let mut res: Vec<Node> = Vec::new();
             loop {
                 match parse_next(lexer)? {
@@ -25,10 +26,8 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
                     node => res.push(node),
                 }
             }
-            Ok(Node(
-                Expr::List(res.into_iter().map(|n| n.0).collect()),
-                lexer.location(1),
-            ))
+
+            Ok(Node(Expr::List(res), location))
         }
         Some(Ok(Token::CloseParen)) => Ok(Node(Expr::CloseParen, lexer.location(1))),
         Some(Err(e)) => Err(e.into()),
@@ -49,8 +48,8 @@ pub fn parse(lexer: &mut Lexer) -> Result<Node, Error> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Error {
-    kind: ErrorKind,
-    location: (usize, usize),
+    pub kind: ErrorKind,
+    pub location: (usize, usize),
 }
 
 impl Error {
@@ -103,11 +102,11 @@ mod tests {
             res,
             Ok(Node(
                 Expr::List(vec![
-                    Expr::Symbol(Symbol::Plus),
-                    Expr::Number(1.0),
-                    Expr::Number(2.0),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1)),
+                    Node(Expr::Number(1.0), (0, 3)),
+                    Node(Expr::Number(2.0), (0, 5)),
                 ]),
-                (0, 6)
+                (0, 0)
             ))
         );
     }
@@ -120,16 +119,19 @@ mod tests {
             res,
             Ok(Node(
                 Expr::List(vec![
-                    Expr::Symbol(Symbol::Plus),
-                    Expr::Number(2.5),
-                    Expr::Number(64.0),
-                    Expr::List(vec![
-                        Expr::Symbol(Symbol::Multiply),
-                        Expr::Number(2.0),
-                        Expr::Number(3.0),
-                    ]),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1)),
+                    Node(Expr::Number(2.5), (0, 3)),
+                    Node(Expr::Number(64.0), (0, 7)),
+                    Node(
+                        Expr::List(vec![
+                            Node(Expr::Symbol(Symbol::Multiply), (0, 11)),
+                            Node(Expr::Number(2.0), (0, 13)),
+                            Node(Expr::Number(3.0), (0, 15)),
+                        ]),
+                        (0, 10)
+                    ),
                 ]),
-                (0, 17)
+                (0, 0)
             ))
         );
     }
