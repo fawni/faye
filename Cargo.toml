@@ -1,6 +1,6 @@
 [package]
 name = "faye"
-description = "wip"
+description = "a pretty lil lisp"
 authors = ["fawn <fawn@envs.net>"]
 version = "0.0.1"
 edition = "2021"
