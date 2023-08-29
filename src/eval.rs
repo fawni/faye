@@ -1,73 +1,64 @@
+// faye, a pretty lil lisp
+// Copyright (c) 2023 fawn
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{
     lexer::Symbol,
     parser::{Expr, Node},
 };
 
-pub fn eval(ast: Node) -> Result<f64, Error> {
+pub fn eval(ast: &Node) -> Result<f64, Error> {
     match ast {
-        Node(Expr::Number(n), _) => Ok(n),
+        Node(Expr::Number(n), _) => Ok(*n),
         Node(Expr::List(list), location) => {
             if list.len() < 2 {
-                return Err(Error::new(ErrorKind::MissingArguments, location));
+                return Err(Error(ErrorKind::MissingArguments, *location));
             }
 
-            let Node(Expr::Symbol(func), location) = list[0] else {
-                return Err(Error::new(ErrorKind::InvalidFunction, location));
+            let (func, sym_location) = match list[0] {
+                Node(Expr::Symbol(sym), loc) => (sym, loc),
+                Node(_, loc) => return Err(Error(ErrorKind::InvalidFunction, loc)),
             };
 
-            let args = list[1..]
-                .iter()
-                .map(|node| match eval(node.clone()) {
-                    Ok(n) => Ok(n),
-                    Err(err) => Err(err),
-                })
-                .collect::<Result<Vec<f64>, Error>>()?;
+            let args = list[1..].iter().map(eval).collect::<Result<Vec<_>, _>>()?;
 
             match func {
                 Symbol::Plus => Ok(args.into_iter().sum()),
                 Symbol::Minus => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc - x)
-                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
                 Symbol::Multiply => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc * x)
-                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
                 Symbol::Divide => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc / x)
-                    .ok_or_else(|| Error::new(ErrorKind::CalculationError, location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
             }
         }
         Node(Expr::Symbol(sym), location) => {
-            Err(Error::new(ErrorKind::SymbolMisplaced(sym), location))
+            Err(Error(ErrorKind::SymbolMisplaced(*sym), *location))
         }
-        Node(Expr::CloseParen, location) => Err(Error::new(ErrorKind::Unreachable, location)),
+        Node(Expr::CloseParen, location) => Err(Error(ErrorKind::Unreachable, *location)),
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub location: (usize, usize),
-}
-
-impl Error {
-    pub const fn new(kind: ErrorKind, location: (usize, usize)) -> Self {
-        Self { kind, location }
-    }
-}
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Error(pub ErrorKind, pub (usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.location;
-        write!(f, "{}:{} {}", line, col, self.kind)
+        let (line, col) = self.1;
+        write!(f, "{}:{} {}", line, col, self.0)
     }
 }
 
 impl std::error::Error for Error {}
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ErrorKind {
     Unreachable,
     SymbolMisplaced(Symbol),
@@ -105,13 +96,26 @@ mod tests {
             (0, 0),
         );
 
-        let res = eval(ast);
+        let res = eval(&ast);
         assert_eq!(
             res,
-            Err(Error::new(
-                ErrorKind::SymbolMisplaced(Symbol::Multiply),
-                (0, 7)
-            ))
+            Err(Error(ErrorKind::SymbolMisplaced(Symbol::Multiply), (0, 7)))
         );
+    }
+
+    #[test]
+    fn test_invalid_function() {
+        // (1 + 2)
+        let ast = Node(
+            Expr::List(vec![
+                Node(Expr::Number(1.0), (0, 1)),
+                Node(Expr::Symbol(Symbol::Plus), (0, 3)),
+                Node(Expr::Number(2.0), (0, 5)),
+            ]),
+            (0, 0),
+        );
+
+        let res = eval(&ast);
+        assert_eq!(res, Err(Error(ErrorKind::InvalidFunction, (0, 1))));
     }
 }

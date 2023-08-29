@@ -6,3 +6,6 @@ version = "0.0.1"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://codeberg.org/fawn/faye"
+
+[dependencies]
+rustyline = "12.0.0"

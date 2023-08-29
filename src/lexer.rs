@@ -1,15 +1,21 @@
+// faye, a pretty lil lisp
+// Copyright (c) 2023 fawn
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Lexer<'a> {
+    input: &'a str,
     pos: usize,
     line: usize,
-    input: &'a str,
 }
 
 impl Lexer<'_> {
     pub const fn new(input: &str) -> Lexer {
         Lexer {
+            input,
             pos: 0,
             line: 0,
-            input,
         }
     }
 
@@ -34,7 +40,7 @@ impl Lexer<'_> {
     fn read(&mut self) -> Result<Token, Error> {
         while self
             .current()
-            .ok_or_else(|| Error::new(ErrorKind::Other, self.location(0)))?
+            .ok_or_else(|| Error(ErrorKind::Other, self.location(0)))?
             .is_ascii_whitespace()
         {
             self.advance();
@@ -42,7 +48,7 @@ impl Lexer<'_> {
 
         match self
             .current()
-            .ok_or_else(|| Error::new(ErrorKind::Other, self.location(0)))?
+            .ok_or_else(|| Error(ErrorKind::Other, self.location(0)))?
         {
             '(' => {
                 self.advance();
@@ -66,7 +72,7 @@ impl Lexer<'_> {
                 let n = s
                     .parse::<f64>()
                     .ok()
-                    .ok_or_else(|| Error::new(ErrorKind::InvalidNumber(s), self.location(len)))?;
+                    .ok_or_else(|| Error(ErrorKind::InvalidNumber(s), self.location(len)))?;
                 Ok(Token::Number(n))
             }
             '\n' => {
@@ -89,7 +95,7 @@ impl Lexer<'_> {
                     self.advance();
                 }
                 let len = s.len();
-                Err(Error::new(ErrorKind::UnknownKeyword(s), self.location(len)))
+                Err(Error(ErrorKind::UnknownKeyword(s), self.location(len)))
             }
         }
     }
@@ -107,7 +113,7 @@ impl Iterator for Lexer<'_> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Token {
     OpenParen,
     CloseParen,
@@ -154,28 +160,19 @@ impl TryFrom<char> for Symbol {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub location: (usize, usize),
-}
-
-impl Error {
-    pub const fn new(kind: ErrorKind, location: (usize, usize)) -> Self {
-        Self { kind, location }
-    }
-}
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Error(pub ErrorKind, pub (usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.location;
-        write!(f, "{}:{} {}", line, col, self.kind)
+        let (line, col) = self.1;
+        write!(f, "{}:{} {}", line, col, self.0)
     }
 }
 
 impl std::error::Error for Error {}
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
     InvalidSymbol(char),
     InvalidNumber(String),
@@ -226,7 +223,7 @@ mod tests {
         assert_eq!(lexer.next(), Some(Ok(Token::Number(0.0001))));
         assert_eq!(
             lexer.next(),
-            Some(Err(Error::new(
+            Some(Err(Error(
                 ErrorKind::InvalidNumber("1.1.1".to_owned()),
                 (0, 18),
             )))

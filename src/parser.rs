@@ -1,3 +1,8 @@
+// faye, a pretty lil lisp
+// Copyright (c) 2023 fawn
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::lexer::{Error as LexerError, ErrorKind as LexerErrorKind, Lexer, Symbol, Token};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -31,37 +36,25 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
         }
         Some(Ok(Token::CloseParen)) => Ok(Node(Expr::CloseParen, lexer.location(1))),
         Some(Err(e)) => Err(e.into()),
-        None => Err(Error::new(ErrorKind::Empty, lexer.location(0))),
+        None => Err(Error(ErrorKind::Empty, lexer.location(0))),
     }
 }
 
 // TODO: Parse more than one expression: `Vec<Node>`
 pub fn parse(lexer: &mut Lexer) -> Result<Node, Error> {
     match parse_next(lexer)? {
-        Node(Expr::CloseParen, _) => Err(Error::new(
-            ErrorKind::UnexpectedCloseParen,
-            lexer.location(1),
-        )),
+        Node(Expr::CloseParen, _) => Err(Error(ErrorKind::UnexpectedCloseParen, lexer.location(1))),
         node => Ok(node),
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub location: (usize, usize),
-}
-
-impl Error {
-    pub const fn new(kind: ErrorKind, location: (usize, usize)) -> Self {
-        Self { kind, location }
-    }
-}
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Error(pub ErrorKind, pub (usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.location;
-        write!(f, "{}:{} {}", line, col, self.kind)
+        let (line, col) = self.1;
+        write!(f, "{}:{} {}", line, col, self.0)
     }
 }
 
@@ -69,11 +62,11 @@ impl std::error::Error for Error {}
 
 impl From<LexerError> for Error {
     fn from(e: LexerError) -> Self {
-        Self::new(ErrorKind::Lexer(e.kind), e.location)
+        Self(ErrorKind::Lexer(e.0), e.1)
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
     Lexer(LexerErrorKind),
     UnexpectedCloseParen,
@@ -140,18 +133,18 @@ mod tests {
     fn error_empty() {
         let mut lexer = Lexer::new("");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error::new(ErrorKind::Empty, (0, 0))));
+        assert_eq!(res, Err(Error(ErrorKind::Empty, (0, 0))));
     }
 
     #[test]
     fn error_invalid_number() {
-        let mut lexer = Lexer::new("(1.2.3)");
+        let mut lexer = Lexer::new("(+ 1.2.3)");
         let res = parse(&mut lexer);
         assert_eq!(
             res,
-            Err(Error::new(
+            Err(Error(
                 ErrorKind::Lexer(LexerErrorKind::InvalidNumber("1.2.3".to_owned())),
-                (0, 1)
+                (0, 3)
             ))
         );
     }
@@ -160,9 +153,6 @@ mod tests {
     fn error_unexpected_close_paren() {
         let mut lexer = Lexer::new(")");
         let res = parse(&mut lexer);
-        assert_eq!(
-            res,
-            Err(Error::new(ErrorKind::UnexpectedCloseParen, (0, 0)))
-        );
+        assert_eq!(res, Err(Error(ErrorKind::UnexpectedCloseParen, (0, 0))));
     }
 }
