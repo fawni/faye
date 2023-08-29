@@ -7,6 +7,6 @@ faye is the name of coquettish tiny grey cat, the middle name of a pretty ombre 
 
 ![scrot](meta/scrot.png)
 
-# license
+## license
 
 [Apache-2.0](LICENSE)
