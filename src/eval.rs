@@ -17,7 +17,7 @@ pub fn eval(ast: Node) -> Result<f64, Error> {
 
             let args = list[1..]
                 .iter()
-                .map(|node| match eval(Node(node.clone().0, location)) {
+                .map(|node| match eval(node.clone()) {
                     Ok(n) => Ok(n),
                     Err(err) => Err(err),
                 })
