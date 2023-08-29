@@ -44,7 +44,7 @@ fn run(line: &str, prompt_len: usize) {
         }
     };
 
-    match eval::eval(&ast) {
+    match eval::eval(&ast[0]) {
         Ok(res) => println!("\x1b[32m{res}\x1b[0m"),
         Err(err) => {
             let (_, col, len) = err.1;

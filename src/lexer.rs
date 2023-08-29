@@ -25,7 +25,7 @@ impl Lexer<'_> {
         (self.line, self.col - len, len)
     }
 
-    fn current(&self) -> Option<char> {
+    pub fn current(&self) -> Option<char> {
         self.input.chars().nth(self.pos)
     }
 
