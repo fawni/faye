@@ -11,9 +11,10 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::builder()
         .auto_add_history(true)
-        .max_history_size(1000)?
+        .max_history_size(100)?
         .build();
     let mut rl: Editor<(), _> = Editor::with_config(config)?;
+
     loop {
         match rl.readline("~> ") {
             Ok(line) => run(&line),

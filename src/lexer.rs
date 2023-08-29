@@ -33,10 +33,6 @@ impl Lexer<'_> {
         c
     }
 
-    fn is_symbol(c: char) -> bool {
-        Symbol::try_from(c).is_ok()
-    }
-
     fn read(&mut self) -> Result<Token, Error> {
         while self
             .current()
@@ -61,7 +57,7 @@ impl Lexer<'_> {
             '0'..='9' => {
                 let mut s = String::new();
                 while let Some(c) = self.current() {
-                    if !c.is_ascii_digit() && c != '.' {
+                    if c.is_seperator() {
                         break;
                     }
 
@@ -80,22 +76,22 @@ impl Lexer<'_> {
                 self.line += 1;
                 self.read()
             }
-            sym if Self::is_symbol(sym) => {
-                self.advance();
-                Ok(Token::Symbol(Symbol::try_from(sym).unwrap()))
-            }
             _ => {
                 let mut s = String::new();
                 while let Some(c) = self.current() {
-                    if !c.is_ascii_alphanumeric() {
+                    if c.is_seperator() {
                         break;
                     }
 
                     s.push(c);
                     self.advance();
                 }
+
                 let len = s.len();
-                Err(Error(ErrorKind::UnknownKeyword(s), self.location(len)))
+                match Symbol::try_from(&*s) {
+                    Ok(sym) => Ok(Token::Symbol(sym)),
+                    _ => Err(Error(ErrorKind::UnknownKeyword(s), self.location(len))),
+                }
             }
         }
     }
@@ -146,17 +142,27 @@ impl std::fmt::Display for Symbol {
     }
 }
 
-impl TryFrom<char> for Symbol {
+impl TryFrom<&str> for Symbol {
     type Error = ErrorKind;
 
-    fn try_from(c: char) -> Result<Self, Self::Error> {
-        match c {
-            '+' => Ok(Self::Plus),
-            '-' => Ok(Self::Minus),
-            '*' => Ok(Self::Multiply),
-            '/' => Ok(Self::Divide),
-            _ => Err(Self::Error::InvalidSymbol(c)),
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "+" => Ok(Self::Plus),
+            "-" => Ok(Self::Minus),
+            "*" => Ok(Self::Multiply),
+            "/" => Ok(Self::Divide),
+            _ => Err(Self::Error::InvalidSymbol(s.to_owned())),
         }
+    }
+}
+
+trait Seperator {
+    fn is_seperator(&self) -> bool;
+}
+
+impl Seperator for char {
+    fn is_seperator(&self) -> bool {
+        self.is_ascii_whitespace() || *self == '(' || *self == ')'
     }
 }
 
@@ -174,7 +180,7 @@ impl std::error::Error for Error {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
-    InvalidSymbol(char),
+    InvalidSymbol(String),
     InvalidNumber(String),
     UnknownKeyword(String),
     Other,
@@ -183,7 +189,7 @@ pub enum ErrorKind {
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidSymbol(c) => write!(f, "'{c}' is not a valid symbol"),
+            Self::InvalidSymbol(s) => write!(f, "'{s}' is not a valid symbol"),
             Self::InvalidNumber(s) => write!(f, "Could not parse number '{s}'"),
             Self::UnknownKeyword(s) => write!(f, "Unknown Keyword: '{s}' is not a valid keyword"),
             Self::Other => write!(f, "ummmmmm... something went wrong idk"),
@@ -228,14 +234,5 @@ mod tests {
                 (0, 18),
             )))
         );
-    }
-
-    #[test]
-    fn is_symbol() {
-        assert!(Lexer::is_symbol('+'));
-        assert!(Lexer::is_symbol('-'));
-        assert!(Lexer::is_symbol('*'));
-        assert!(Lexer::is_symbol('/'));
-        assert!(!Lexer::is_symbol('a'));
     }
 }

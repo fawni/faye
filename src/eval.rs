@@ -16,9 +16,10 @@ pub fn eval(ast: &Node) -> Result<f64, Error> {
                 return Err(Error(ErrorKind::MissingArguments, *location));
             }
 
-            let (func, sym_location) = match list[0] {
-                Node(Expr::Symbol(sym), loc) => (sym, loc),
-                Node(_, loc) => return Err(Error(ErrorKind::InvalidFunction, loc)),
+            let (func, sym_location) = match list.get(0) {
+                Some(Node(Expr::Symbol(sym), loc)) => (sym, loc),
+                Some(Node(_, loc)) => return Err(Error(ErrorKind::InvalidFunction, *loc)),
+                None => return Err(Error(ErrorKind::MissingArguments, *location)),
             };
 
             let args = list[1..].iter().map(eval).collect::<Result<Vec<_>, _>>()?;
@@ -28,15 +29,15 @@ pub fn eval(ast: &Node) -> Result<f64, Error> {
                 Symbol::Minus => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc - x)
-                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, *sym_location))?),
                 Symbol::Multiply => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc * x)
-                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, *sym_location))?),
                 Symbol::Divide => Ok(args
                     .into_iter()
                     .reduce(|acc, x| acc / x)
-                    .ok_or(Error(ErrorKind::CalculationError, sym_location))?),
+                    .ok_or(Error(ErrorKind::CalculationError, *sym_location))?),
             }
         }
         Node(Expr::Symbol(sym), location) => {
