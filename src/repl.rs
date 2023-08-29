@@ -46,6 +46,13 @@ fn run(line: &str, prompt_len: usize) {
 
     match eval::eval(&ast) {
         Ok(res) => println!("\x1b[32m{res}\x1b[0m"),
-        Err(err) => println!("\x1b[1;31merror\x1b[0m: {err}"),
+        Err(err) => {
+            let (_, col, len) = err.1;
+            println!(
+                "{}\x1b[1;31m{}\nerror\x1b[0m: {err}",
+                " ".repeat(col + prompt_len),
+                "^".repeat(len)
+            )
+        }
     }
 }
