@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     input: &'a str,
     pos: usize,
@@ -21,8 +21,8 @@ impl Lexer<'_> {
         }
     }
 
-    pub const fn location(&self, len: usize) -> (usize, usize) {
-        (self.line, self.col - len)
+    pub const fn location(&self, len: usize) -> (usize, usize, usize) {
+        (self.line, self.col - len, len)
     }
 
     fn current(&self) -> Option<char> {
@@ -94,7 +94,7 @@ impl Lexer<'_> {
                 let len = s.len();
                 match Symbol::try_from(&*s) {
                     Ok(sym) => Ok(Token::Symbol(sym)),
-                    _ => Err(Error(ErrorKind::UnknownKeyword(s), self.location(len))),
+                    _ => Err(Error(ErrorKind::InvalidSymbol(s), self.location(len))),
                 }
             }
         }
@@ -171,12 +171,11 @@ impl Seperator for char {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Error(pub ErrorKind, pub (usize, usize));
+pub struct Error(pub ErrorKind, pub (usize, usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.1;
-        write!(f, "{}:{} {}", line, col, self.0)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -186,7 +185,6 @@ impl std::error::Error for Error {}
 pub enum ErrorKind {
     InvalidSymbol(String),
     InvalidNumber(String),
-    UnknownKeyword(String),
     Other,
 }
 
@@ -195,7 +193,6 @@ impl std::fmt::Display for ErrorKind {
         match self {
             Self::InvalidSymbol(s) => write!(f, "'{s}' is not a valid symbol"),
             Self::InvalidNumber(s) => write!(f, "Could not parse number '{s}'"),
-            Self::UnknownKeyword(s) => write!(f, "Unknown Keyword: '{s}' is not a valid keyword"),
             Self::Other => write!(f, "ummmmmm... something went wrong idk"),
         }
     }
@@ -235,7 +232,7 @@ mod tests {
             lexer.next(),
             Some(Err(Error(
                 ErrorKind::InvalidNumber("1.1.1".to_owned()),
-                (0, 18),
+                (0, 18, 5),
             )))
         );
     }
@@ -257,7 +254,7 @@ mod tests {
             lexer.next(),
             Some(Err(Error(
                 ErrorKind::InvalidNumber("5.x".to_owned()),
-                (1, 7),
+                (1, 7, 3),
             )))
         );
     }

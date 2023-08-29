@@ -6,7 +6,7 @@
 use crate::lexer::{Error as LexerError, ErrorKind as LexerErrorKind, Lexer, Symbol, Token};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Node(pub Expr, pub (usize, usize));
+pub struct Node(pub Expr, pub (usize, usize, usize));
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
@@ -23,7 +23,7 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
         }
         Some(Ok(Token::Symbol(sym))) => Ok(Node(Expr::Symbol(sym), lexer.location(sym.len()))),
         Some(Ok(Token::OpenParen)) => {
-            let location = lexer.location(1);
+            let (line, col_start, _) = lexer.location(1);
             let mut res: Vec<Node> = Vec::new();
             loop {
                 match parse_next(lexer)? {
@@ -31,8 +31,12 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
                     node => res.push(node),
                 }
             }
+            let (_, col_end, _) = lexer.location(0);
 
-            Ok(Node(Expr::List(res), location))
+            Ok(Node(
+                Expr::List(res),
+                (line, col_start, col_end - col_start),
+            ))
         }
         Some(Ok(Token::CloseParen)) => Ok(Node(Expr::CloseParen, lexer.location(1))),
         Some(Err(e)) => Err(e.into()),
@@ -49,12 +53,11 @@ pub fn parse(lexer: &mut Lexer) -> Result<Node, Error> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Error(pub ErrorKind, pub (usize, usize));
+pub struct Error(pub ErrorKind, pub (usize, usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.1;
-        write!(f, "{}:{} {}", line, col, self.0)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -95,11 +98,11 @@ mod tests {
             res,
             Ok(Node(
                 Expr::List(vec![
-                    Node(Expr::Symbol(Symbol::Plus), (0, 1)),
-                    Node(Expr::Number(1.0), (0, 3)),
-                    Node(Expr::Number(2.0), (0, 5)),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1, 1)),
+                    Node(Expr::Number(1.0), (0, 3, 1)),
+                    Node(Expr::Number(2.0), (0, 5, 1)),
                 ]),
-                (0, 0)
+                (0, 0, 7)
             ))
         );
     }
@@ -112,19 +115,19 @@ mod tests {
             res,
             Ok(Node(
                 Expr::List(vec![
-                    Node(Expr::Symbol(Symbol::Plus), (0, 1)),
-                    Node(Expr::Number(2.5), (0, 3)),
-                    Node(Expr::Number(64.0), (0, 7)),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1, 1)),
+                    Node(Expr::Number(2.5), (0, 3, 3)),
+                    Node(Expr::Number(64.0), (0, 7, 2)),
                     Node(
                         Expr::List(vec![
-                            Node(Expr::Symbol(Symbol::Multiply), (0, 11)),
-                            Node(Expr::Number(2.0), (0, 13)),
-                            Node(Expr::Number(3.0), (0, 15)),
+                            Node(Expr::Symbol(Symbol::Multiply), (0, 11, 1)),
+                            Node(Expr::Number(2.0), (0, 13, 1)),
+                            Node(Expr::Number(3.0), (0, 15, 1)),
                         ]),
-                        (0, 10)
+                        (0, 10, 7)
                     ),
                 ]),
-                (0, 0)
+                (0, 0, 18)
             ))
         );
     }
@@ -133,7 +136,7 @@ mod tests {
     fn error_empty() {
         let mut lexer = Lexer::new("");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error(ErrorKind::Empty, (0, 0))));
+        assert_eq!(res, Err(Error(ErrorKind::Empty, (0, 0, 0))));
     }
 
     #[test]
@@ -144,7 +147,7 @@ mod tests {
             res,
             Err(Error(
                 ErrorKind::Lexer(LexerErrorKind::InvalidNumber("1.2.3".to_owned())),
-                (0, 3)
+                (0, 3, 5)
             ))
         );
     }
@@ -153,6 +156,6 @@ mod tests {
     fn error_unexpected_close_paren() {
         let mut lexer = Lexer::new(")");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error(ErrorKind::UnexpectedCloseParen, (0, 0))));
+        assert_eq!(res, Err(Error(ErrorKind::UnexpectedCloseParen, (0, 0, 1))));
     }
 }

@@ -48,12 +48,11 @@ pub fn eval(ast: &Node) -> Result<f64, Error> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Error(pub ErrorKind, pub (usize, usize));
+pub struct Error(pub ErrorKind, pub (usize, usize, usize));
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line, col) = self.1;
-        write!(f, "{}:{} {}", line, col, self.0)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -73,7 +72,7 @@ impl std::fmt::Display for ErrorKind {
         match self {
             Self::Unreachable => write!(f, "Supposedly unreachable code reached"),
             Self::SymbolMisplaced(sym) => write!(f, "Symbol '{sym}' should not be here"),
-            Self::MissingArguments => write!(f, "Expression is missing arguments"),
+            Self::MissingArguments => write!(f, "Function is missing arguments"),
             Self::InvalidFunction => write!(f, "Function undefined"),
             Self::CalculationError => write!(f, "Calculation error"),
         }
@@ -89,18 +88,21 @@ mod tests {
         // (+ 1 2 *)
         let ast = Node(
             Expr::List(vec![
-                Node(Expr::Symbol(Symbol::Plus), (0, 1)),
-                Node(Expr::Number(1.0), (0, 3)),
-                Node(Expr::Number(2.0), (0, 5)),
-                Node(Expr::Symbol(Symbol::Multiply), (0, 7)),
+                Node(Expr::Symbol(Symbol::Plus), (0, 1, 1)),
+                Node(Expr::Number(1.0), (0, 3, 1)),
+                Node(Expr::Number(2.0), (0, 5, 1)),
+                Node(Expr::Symbol(Symbol::Multiply), (0, 7, 1)),
             ]),
-            (0, 0),
+            (0, 0, 9),
         );
 
         let res = eval(&ast);
         assert_eq!(
             res,
-            Err(Error(ErrorKind::SymbolMisplaced(Symbol::Multiply), (0, 7)))
+            Err(Error(
+                ErrorKind::SymbolMisplaced(Symbol::Multiply),
+                (0, 7, 1)
+            ))
         );
     }
 
@@ -109,14 +111,14 @@ mod tests {
         // (1 + 2)
         let ast = Node(
             Expr::List(vec![
-                Node(Expr::Number(1.0), (0, 1)),
-                Node(Expr::Symbol(Symbol::Plus), (0, 3)),
-                Node(Expr::Number(2.0), (0, 5)),
+                Node(Expr::Number(1.0), (0, 1, 1)),
+                Node(Expr::Symbol(Symbol::Plus), (0, 3, 1)),
+                Node(Expr::Number(2.0), (0, 5, 1)),
             ]),
-            (0, 0),
+            (0, 0, 7),
         );
 
         let res = eval(&ast);
-        assert_eq!(res, Err(Error(ErrorKind::InvalidFunction, (0, 1))));
+        assert_eq!(res, Err(Error(ErrorKind::InvalidFunction, (0, 1, 1))));
     }
 }
