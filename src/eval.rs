@@ -87,3 +87,31 @@ impl std::fmt::Display for ErrorKind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn error_symbol_misplaced() {
+        // (+ 1 2 *)
+        let ast = Node(
+            Expr::List(vec![
+                Node(Expr::Symbol(Symbol::Plus), (0, 1)),
+                Node(Expr::Number(1.0), (0, 3)),
+                Node(Expr::Number(2.0), (0, 5)),
+                Node(Expr::Symbol(Symbol::Multiply), (0, 7)),
+            ]),
+            (0, 0),
+        );
+
+        let res = eval(ast);
+        assert_eq!(
+            res,
+            Err(Error::new(
+                ErrorKind::SymbolMisplaced(Symbol::Multiply),
+                (0, 7)
+            ))
+        );
+    }
+}

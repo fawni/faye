@@ -155,4 +155,14 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn error_unexpected_close_paren() {
+        let mut lexer = Lexer::new(")");
+        let res = parse(&mut lexer);
+        assert_eq!(
+            res,
+            Err(Error::new(ErrorKind::UnexpectedCloseParen, (0, 0)))
+        );
+    }
 }
