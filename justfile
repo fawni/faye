@@ -11,3 +11,7 @@ lint:
 
 repl:
     @cargo run -q
+
+push:
+    git push
+    git push gh
