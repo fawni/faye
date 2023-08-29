@@ -8,6 +8,7 @@ pub struct Lexer<'a> {
     input: &'a str,
     pos: usize,
     line: usize,
+    col: usize,
 }
 
 impl Lexer<'_> {
@@ -16,11 +17,12 @@ impl Lexer<'_> {
             input,
             pos: 0,
             line: 0,
+            col: 0,
         }
     }
 
     pub const fn location(&self, len: usize) -> (usize, usize) {
-        (self.line, self.pos - len)
+        (self.line, self.col - len)
     }
 
     fn current(&self) -> Option<char> {
@@ -30,6 +32,7 @@ impl Lexer<'_> {
     fn advance(&mut self) -> Option<char> {
         let c = self.current();
         self.pos += 1;
+        self.col += 1;
         c
     }
 
@@ -37,7 +40,7 @@ impl Lexer<'_> {
         while self
             .current()
             .ok_or_else(|| Error(ErrorKind::Other, self.location(0)))?
-            .is_ascii_whitespace()
+            == ' '
         {
             self.advance();
         }
@@ -74,6 +77,7 @@ impl Lexer<'_> {
             '\n' => {
                 self.advance();
                 self.line += 1;
+                self.col = 0;
                 self.read()
             }
             _ => {
@@ -232,6 +236,28 @@ mod tests {
             Some(Err(Error(
                 ErrorKind::InvalidNumber("1.1.1".to_owned()),
                 (0, 18),
+            )))
+        );
+    }
+
+    #[test]
+    fn newline() {
+        let mut lexer = Lexer::new("(+ 14 25.5 333\n(* 2 5 5.x))");
+
+        assert_eq!(lexer.next(), Some(Ok(Token::OpenParen)));
+        assert_eq!(lexer.next(), Some(Ok(Token::Symbol(Symbol::Plus))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(14.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(25.5))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(333.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::OpenParen)));
+        assert_eq!(lexer.next(), Some(Ok(Token::Symbol(Symbol::Multiply))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(2.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(5.0))));
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error(
+                ErrorKind::InvalidNumber("5.x".to_owned()),
+                (1, 7),
             )))
         );
     }
