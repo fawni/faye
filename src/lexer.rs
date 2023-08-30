@@ -92,9 +92,12 @@ impl Lexer<'_> {
                 }
 
                 let len = s.len();
-                match Symbol::try_from(&*s) {
-                    Ok(sym) => Ok(Token::Symbol(sym)),
-                    _ => Err(Error(ErrorKind::InvalidSymbol(s), self.location(len))),
+                if let Ok(sym) = Symbol::try_from(&*s) {
+                    Ok(Token::Symbol(sym))
+                } else if let Ok(n) = s.parse::<f64>() {
+                    Ok(Token::Number(n))
+                } else {
+                    Err(Error(ErrorKind::InvalidSymbol(s), self.location(len)))
                 }
             }
         }
@@ -257,5 +260,18 @@ mod tests {
                 (1, 7, 3),
             )))
         );
+    }
+
+    #[test]
+    fn negative_minus() {
+        let mut lexer = Lexer::new("(- 1 -2 3)");
+
+        assert_eq!(lexer.next(), Some(Ok(Token::OpenParen)));
+        assert_eq!(lexer.next(), Some(Ok(Token::Symbol(Symbol::Minus))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(1.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(-2.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::Number(3.0))));
+        assert_eq!(lexer.next(), Some(Ok(Token::CloseParen)));
+        assert_eq!(lexer.next(), None);
     }
 }
