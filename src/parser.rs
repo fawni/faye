@@ -43,7 +43,7 @@ fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
         Some(Ok(Token::Symbol(sym))) => Ok(Node(Expr::Symbol(sym), lexer.location(sym.len()))),
         Some(Ok(Token::OpenParen)) => parse_list(lexer),
         Some(Ok(Token::CloseParen)) => Ok(Node(Expr::CloseParen, lexer.location(1))),
-        Some(Err(e)) => Err(e.into()),
+        Some(Err(e)) => Err(Error::from(e)),
         None => Err(Error(ErrorKind::Empty, lexer.location(0))),
     }
 }

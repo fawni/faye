@@ -26,6 +26,17 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+macro_rules! err {
+    ($e:ident, $l:ident) => {
+        return println!(
+            "{}\x1b[1;31m{}\nerror\x1b[0m: {}",
+            " ".repeat($e.1 .1 + $l),
+            "^".repeat($e.1 .2),
+            $e
+        )
+    };
+}
+
 fn run(line: &str, prompt_len: usize) {
     use crate::lexer::Lexer;
     use crate::{eval, parser};
@@ -34,25 +45,11 @@ fn run(line: &str, prompt_len: usize) {
 
     let ast = match parser::parse(&mut lex) {
         Ok(ast) => ast,
-        Err(err) => {
-            let (_, col, len) = err.1;
-            return println!(
-                "{}\x1b[1;31m{}\nerror\x1b[0m: {err}",
-                " ".repeat(col + prompt_len),
-                "^".repeat(len),
-            );
-        }
+        Err(err) => err!(err, prompt_len),
     };
 
     match eval::eval(&ast[0]) {
         Ok(res) => println!("\x1b[32m{res}\x1b[0m"),
-        Err(err) => {
-            let (_, col, len) = err.1;
-            println!(
-                "{}\x1b[1;31m{}\nerror\x1b[0m: {err}",
-                " ".repeat(col + prompt_len),
-                "^".repeat(len)
-            )
-        }
+        Err(err) => err!(err, prompt_len),
     }
 }
