@@ -30,8 +30,8 @@ macro_rules! err {
     ($e:ident, $l:ident) => {
         return println!(
             "{}\x1b[1;31m{}\nerror\x1b[0m: {}",
-            " ".repeat($e.1 .1 + $l),
-            "^".repeat($e.1 .2),
+            " ".repeat($e.start.1 + $l),
+            "^".repeat($e.end.1 - $e.start.1),
             $e
         )
     };

@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::lexer::{Error as LexerError, ErrorKind as LexerErrorKind, Lexer, Symbol, Token};
+use crate::lexer::{Error as LexerError, Lexer, Symbol, Token, TokenKind};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Node(pub Expr, pub (usize, usize, usize));
+pub struct Node(pub Expr, pub (usize, usize), pub (usize, usize));
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
@@ -20,13 +20,17 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
     let mut ast: Vec<Node> = Vec::new();
 
     if lexer.current().is_none() {
-        return Err(Error(ErrorKind::Empty, lexer.location(0)));
+        return Err(Error::new(
+            ErrorKind::Empty,
+            lexer.location(),
+            lexer.location(),
+        ));
     }
 
     while lexer.current().is_some() {
         match parse_next(lexer)? {
-            Node(Expr::CloseParen, _) => {
-                return Err(Error(ErrorKind::UnexpectedCloseParen, lexer.location(1)))
+            Node(Expr::CloseParen, start, end) => {
+                return Err(Error::new(ErrorKind::UnexpectedCloseParen, start, end))
             }
             node => ast.push(node),
         }
@@ -36,41 +40,47 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
 }
 
 fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
-    match lexer.next() {
-        Some(Ok(Token::Number(n))) => {
-            Ok(Node(Expr::Number(n), lexer.location(n.to_string().len())))
-        }
-        Some(Ok(Token::Symbol(sym))) => Ok(Node(Expr::Symbol(sym), lexer.location(sym.len()))),
-        Some(Ok(Token::OpenParen)) => parse_list(lexer),
-        Some(Ok(Token::CloseParen)) => Ok(Node(Expr::CloseParen, lexer.location(1))),
-        Some(Err(e)) => Err(Error::from(e)),
-        None => Err(Error(ErrorKind::Empty, lexer.location(0))),
+    match lexer.read()? {
+        Some(Token(TokenKind::Number(n), start, end)) => Ok(Node(Expr::Number(n), start, end)),
+        Some(Token(TokenKind::Symbol(sym), start, end)) => Ok(Node(Expr::Symbol(sym), start, end)),
+        Some(Token(TokenKind::OpenParen, start, _)) => parse_list(lexer, start),
+        Some(Token(TokenKind::CloseParen, start, end)) => Ok(Node(Expr::CloseParen, start, end)),
+        None => Err(Error::new(
+            ErrorKind::Empty,
+            lexer.location(),
+            lexer.location(),
+        )),
     }
 }
 
-fn parse_list(lexer: &mut Lexer) -> Result<Node, Error> {
-    let (line, col_start, _) = lexer.location(1);
+fn parse_list(lexer: &mut Lexer, start: (usize, usize)) -> Result<Node, Error> {
     let mut res: Vec<Node> = Vec::new();
     loop {
         match parse_next(lexer)? {
-            Node(Expr::CloseParen, _) => break,
+            Node(Expr::CloseParen, ..) => break,
             node => res.push(node),
         }
     }
-    let (_, col_end, _) = lexer.location(0);
 
-    Ok(Node(
-        Expr::List(res),
-        (line, col_start, col_end - col_start),
-    ))
+    Ok(Node(Expr::List(res), start, lexer.location()))
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Error(pub ErrorKind, pub (usize, usize, usize));
+pub struct Error {
+    pub kind: ErrorKind,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
+
+impl Error {
+    pub fn new(kind: ErrorKind, start: (usize, usize), end: (usize, usize)) -> Self {
+        Self { kind, start, end }
+    }
+}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.kind)
     }
 }
 
@@ -78,13 +88,15 @@ impl std::error::Error for Error {}
 
 impl From<LexerError> for Error {
     fn from(e: LexerError) -> Self {
-        Self(ErrorKind::Lexer(e.0), e.1)
+        let start = e.start;
+        let end = e.end;
+        Self::new(ErrorKind::Lexer(e), start, end)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
-    Lexer(LexerErrorKind),
+    Lexer(LexerError),
     UnexpectedCloseParen,
     Empty,
 }
@@ -111,11 +123,12 @@ mod tests {
             res,
             Ok(vec![Node(
                 Expr::List(vec![
-                    Node(Expr::Symbol(Symbol::Plus), (0, 1, 1)),
-                    Node(Expr::Number(1.0), (0, 3, 1)),
-                    Node(Expr::Number(2.0), (0, 5, 1)),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1), (0, 2)),
+                    Node(Expr::Number(1.0), (0, 3), (0, 4)),
+                    Node(Expr::Number(2.0), (0, 5), (0, 6)),
                 ]),
-                (0, 0, 7)
+                (0, 0),
+                (0, 7),
             )])
         );
     }
@@ -128,19 +141,21 @@ mod tests {
             res,
             Ok(vec![Node(
                 Expr::List(vec![
-                    Node(Expr::Symbol(Symbol::Plus), (0, 1, 1)),
-                    Node(Expr::Number(2.5), (0, 3, 3)),
-                    Node(Expr::Number(64.0), (0, 7, 2)),
+                    Node(Expr::Symbol(Symbol::Plus), (0, 1), (0, 2)),
+                    Node(Expr::Number(2.5), (0, 3), (0, 6)),
+                    Node(Expr::Number(64.0), (0, 7), (0, 9)),
                     Node(
                         Expr::List(vec![
-                            Node(Expr::Symbol(Symbol::Multiply), (0, 11, 1)),
-                            Node(Expr::Number(2.0), (0, 13, 1)),
-                            Node(Expr::Number(3.0), (0, 15, 1)),
+                            Node(Expr::Symbol(Symbol::Multiply), (0, 11), (0, 12)),
+                            Node(Expr::Number(2.0), (0, 13), (0, 14)),
+                            Node(Expr::Number(3.0), (0, 15), (0, 16)),
                         ]),
-                        (0, 10, 7)
+                        (0, 10),
+                        (0, 17)
                     ),
                 ]),
-                (0, 0, 18)
+                (0, 0),
+                (0, 18)
             )])
         );
     }
@@ -154,37 +169,55 @@ mod tests {
             Ok(vec![
                 Node(
                     Expr::List(vec![
-                        Node(Expr::Symbol(Symbol::Divide), (0, 1, 1)),
-                        Node(Expr::Number(6.0), (0, 3, 1)),
-                        Node(Expr::Number(3.0), (0, 5, 1)),
+                        Node(Expr::Symbol(Symbol::Divide), (0, 1), (0, 2)),
+                        Node(Expr::Number(6.0), (0, 3), (0, 4)),
+                        Node(Expr::Number(3.0), (0, 5), (0, 6)),
                         Node(
                             Expr::List(vec![
-                                Node(Expr::Symbol(Symbol::Plus), (0, 8, 1)),
-                                Node(Expr::Number(1.0), (0, 10, 1)),
-                                Node(Expr::Number(2.0), (0, 12, 1)),
+                                Node(Expr::Symbol(Symbol::Plus), (0, 8), (0, 9)),
+                                Node(Expr::Number(1.0), (0, 10), (0, 11)),
+                                Node(Expr::Number(2.0), (0, 12), (0, 13)),
                             ]),
-                            (0, 7, 7)
+                            (0, 7),
+                            (0, 14),
                         ),
                     ]),
-                    (0, 0, 15)
+                    (0, 0),
+                    (0, 15),
                 ),
                 Node(
                     Expr::List(vec![
-                        Node(Expr::Symbol(Symbol::Multiply), (0, 17, 1)),
-                        Node(Expr::Number(2.0), (0, 19, 1)),
-                        Node(Expr::Number(5.0), (0, 21, 1)),
+                        Node(Expr::Symbol(Symbol::Multiply), (0, 17), (0, 18)),
+                        Node(Expr::Number(2.0), (0, 19), (0, 20)),
+                        Node(Expr::Number(5.0), (0, 21), (0, 22)),
                     ]),
-                    (0, 16, 7)
+                    (0, 16),
+                    (0, 16 + 7),
                 ),
                 Node(
                     Expr::List(vec![
-                        Node(Expr::Symbol(Symbol::Minus), (1, 1, 1)),
-                        Node(Expr::Number(10.0), (1, 3, 2)),
-                        Node(Expr::Number(5.0), (1, 6, 1)),
+                        Node(Expr::Symbol(Symbol::Minus), (1, 1), (1, 2)),
+                        Node(Expr::Number(10.0), (1, 3), (1, 5)),
+                        Node(Expr::Number(5.0), (1, 6), (1, 7)),
                     ]),
-                    (1, 0, 8)
+                    (1, 0),
+                    (1, 8),
                 ),
             ])
+        );
+    }
+
+    #[test]
+    fn parse_float() {
+        let mut lexer = Lexer::new("(2.500000)");
+        let res = parse(&mut lexer);
+        assert_eq!(
+            res,
+            Ok(vec![Node(
+                Expr::List(vec![Node(Expr::Number(2.5), (0, 1), (0, 9))]),
+                (0, 0),
+                (0, 10),
+            )])
         );
     }
 
@@ -192,7 +225,7 @@ mod tests {
     fn error_empty() {
         let mut lexer = Lexer::new("");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error(ErrorKind::Empty, (0, 0, 0))));
+        assert_eq!(res, Err(Error::new(ErrorKind::Empty, (0, 0), (0, 0))));
     }
 
     #[test]
@@ -201,9 +234,15 @@ mod tests {
         let res = parse(&mut lexer);
         assert_eq!(
             res,
-            Err(Error(
-                ErrorKind::Lexer(LexerErrorKind::InvalidNumber("1.2.3".to_owned())),
-                (0, 3, 5)
+            Err(Error::new(
+                ErrorKind::Lexer(LexerError::new(
+                    crate::lexer::ErrorKind::InvalidNumber,
+                    "1.2.3".into(),
+                    (0, 3),
+                    (0, 8),
+                )),
+                (0, 3),
+                (0, 8),
             ))
         );
     }
@@ -212,6 +251,9 @@ mod tests {
     fn error_unexpected_close_paren() {
         let mut lexer = Lexer::new(")");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error(ErrorKind::UnexpectedCloseParen, (0, 0, 1))));
+        assert_eq!(
+            res,
+            Err(Error::new(ErrorKind::UnexpectedCloseParen, (0, 0), (0, 1)))
+        );
     }
 }
