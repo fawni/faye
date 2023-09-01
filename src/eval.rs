@@ -42,7 +42,6 @@ pub fn eval(ast: &Node) -> Result<f64, Error> {
         Node(Expr::Symbol(sym), start, end) => {
             Err(Error::new(ErrorKind::SymbolMisplaced(*sym), *start, *end))
         }
-        Node(Expr::CloseParen, start, end) => Err(Error::new(ErrorKind::Unreachable, *start, *end)),
     }
 }
 
@@ -69,7 +68,6 @@ impl std::error::Error for Error {}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ErrorKind {
-    Unreachable,
     SymbolMisplaced(Symbol),
     MissingArguments,
     InvalidFunction,
@@ -79,7 +77,6 @@ pub enum ErrorKind {
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unreachable => write!(f, "Supposedly unreachable code reached"),
             Self::SymbolMisplaced(sym) => write!(f, "Symbol '{sym}' should not be here"),
             Self::MissingArguments => write!(f, "Function is missing arguments"),
             Self::InvalidFunction => write!(f, "Function undefined"),

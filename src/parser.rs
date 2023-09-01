@@ -13,56 +13,56 @@ pub enum Expr {
     Number(f64),
     Symbol(Symbol),
     List(Vec<Node>),
-    CloseParen,
+}
+
+impl Node {
+    fn push(&mut self, child: Self) -> Result<(), Error> {
+        match self {
+            Self(Expr::List(c), ..) => {
+                c.push(child);
+                Ok(())
+            }
+            _ => Err(Error::new(ErrorKind::Unreachable, child.1, child.2)),
+        }
+    }
 }
 
 pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
-    let mut ast: Vec<Node> = Vec::new();
+    let mut parents = Vec::new();
+    let mut cur_node = Node(Expr::List(Vec::new()), lexer.location(), lexer.location());
 
-    if lexer.current().is_none() {
-        return Err(Error::new(
-            ErrorKind::Empty,
-            lexer.location(),
-            lexer.location(),
-        ));
-    }
-
-    while lexer.current().is_some() {
-        match parse_next(lexer)? {
-            Node(Expr::CloseParen, start, end) => {
-                return Err(Error::new(ErrorKind::UnexpectedCloseParen, start, end))
+    while let Some(token) = lexer.read()? {
+        let child = match token {
+            Token(TokenKind::Number(n), start, end) => Node(Expr::Number(n), start, end),
+            Token(TokenKind::Symbol(s), start, end) => Node(Expr::Symbol(s), start, end),
+            Token(TokenKind::OpenParen, start, end) => {
+                let child = Node(Expr::List(Vec::new()), start, end);
+                parents.push(cur_node);
+                cur_node = child;
+                continue;
             }
-            node => ast.push(node),
-        }
+            Token(TokenKind::CloseParen, start, end) => {
+                let mut parent = parents
+                    .pop()
+                    .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseParen, start, end))?;
+                cur_node.2 = end;
+                parent.push(cur_node)?;
+                cur_node = parent;
+                continue;
+            }
+        };
+
+        cur_node.push(child)?;
     }
 
-    Ok(ast)
-}
-
-fn parse_next(lexer: &mut Lexer) -> Result<Node, Error> {
-    match lexer.read()? {
-        Some(Token(TokenKind::Number(n), start, end)) => Ok(Node(Expr::Number(n), start, end)),
-        Some(Token(TokenKind::Symbol(sym), start, end)) => Ok(Node(Expr::Symbol(sym), start, end)),
-        Some(Token(TokenKind::OpenParen, start, _)) => parse_list(lexer, start),
-        Some(Token(TokenKind::CloseParen, start, end)) => Ok(Node(Expr::CloseParen, start, end)),
-        None => Err(Error::new(
-            ErrorKind::Empty,
-            lexer.location(),
-            lexer.location(),
-        )),
-    }
-}
-
-fn parse_list(lexer: &mut Lexer, start: (usize, usize)) -> Result<Node, Error> {
-    let mut res: Vec<Node> = Vec::new();
-    loop {
-        match parse_next(lexer)? {
-            Node(Expr::CloseParen, ..) => break,
-            node => res.push(node),
-        }
+    if !parents.is_empty() {
+        return Err(Error::new(ErrorKind::UnclosedParen, cur_node.1, cur_node.2));
     }
 
-    Ok(Node(Expr::List(res), start, lexer.location()))
+    match cur_node {
+        Node(Expr::List(body), ..) => Ok(body),
+        _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -98,15 +98,17 @@ impl From<LexerError> for Error {
 pub enum ErrorKind {
     Lexer(LexerError),
     UnexpectedCloseParen,
-    Empty,
+    UnclosedParen,
+    Unreachable,
 }
 
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Empty => write!(f, "Nothing to parse"),
             Self::Lexer(e) => write!(f, "{e}"),
-            Self::UnexpectedCloseParen => write!(f, "Unexpected Close Paren"),
+            Self::UnexpectedCloseParen => write!(f, "Unexpected closing parenthesis"),
+            Self::UnclosedParen => write!(f, "Unclosed parenthesis"),
+            Self::Unreachable => write!(f, "Unexpected parsing state reached"),
         }
     }
 }
@@ -222,10 +224,10 @@ mod tests {
     }
 
     #[test]
-    fn error_empty() {
+    fn parse_empty() {
         let mut lexer = Lexer::new("");
         let res = parse(&mut lexer);
-        assert_eq!(res, Err(Error::new(ErrorKind::Empty, (0, 0), (0, 0))));
+        assert_eq!(res, Ok(Vec::new()));
     }
 
     #[test]
