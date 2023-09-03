@@ -12,6 +12,12 @@ lint:
 repl:
     @cargo run -q
 
+install:
+    @cargo install --path .
+
+uninstall:
+    @cargo uninstall faye
+
 push: (test)
     git push
     git push gh

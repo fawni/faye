@@ -21,14 +21,14 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
             Ok(line) => run(&line, prompt.len()),
             Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
             Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
-            Err(err) => println!("\x1b[1;31mrepl error\x1b[0m: {err}"),
+            Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
         }
     }
 }
 
 macro_rules! err {
     ($e:ident, $l:ident) => {
-        return println!(
+        return eprintln!(
             "{}\x1b[1;31m{}\nerror\x1b[0m: {}",
             " ".repeat($e.start.1 + $l),
             "^".repeat($e.end.1 - $e.start.1),
