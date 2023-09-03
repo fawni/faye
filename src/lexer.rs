@@ -22,7 +22,7 @@ impl Lexer<'_> {
     }
 
     #[inline]
-    pub fn location(&self) -> (usize, usize) {
+    pub const fn location(&self) -> Location {
         (self.line, self.col)
     }
 
@@ -40,20 +40,33 @@ impl Lexer<'_> {
         c
     }
 
-    fn parse_word_or<T: FromStr>(&mut self, kind: ErrorKind) -> Result<T, Error> {
-        let start = self.location();
-        let mut text = String::new();
+    fn read_word(&mut self) -> String {
+        let mut word = String::new();
         while let Some(c) = self.current() {
             if c.is_seperator() {
                 break;
             }
 
-            text.push(c);
+            word.push(c);
             self.advance();
         }
 
-        text.parse()
-            .map_err(|_| Error::new(kind, text, start, self.location()))
+        word
+    }
+
+    fn parse_word_or<T: FromStr>(&mut self, word: String, kind: ErrorKind) -> Result<T, Error> {
+        let start = self.location();
+
+        word.parse()
+            .map_err(|_| Error::new(kind, word, start, self.location()))
+    }
+
+    fn parse_or<T: FromStr>(&mut self, kind: ErrorKind) -> Result<T, Error> {
+        let start = self.location();
+        let word = self.read_word();
+
+        word.parse()
+            .map_err(|_| Error::new(kind, word, start, self.location()))
     }
 
     pub fn read(&mut self) -> Result<Option<Token>, Error> {
@@ -82,11 +95,27 @@ impl Lexer<'_> {
                 self.advance();
                 TokenKind::CloseParen
             }
-            Some('0'..='9') => TokenKind::Number(self.parse_word_or(ErrorKind::InvalidNumber)?),
+            Some('0'..='9') => TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?),
             Some('+' | '-') if matches!(self.peek(1), Some('0'..='9')) => {
-                TokenKind::Number(self.parse_word_or(ErrorKind::InvalidNumber)?)
+                TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
             }
-            Some(_) => TokenKind::Symbol(self.parse_word_or(ErrorKind::InvalidSymbol)?),
+            Some('"') => {
+                let word = self.read_word();
+                word.strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .map(|s| TokenKind::String(s.to_owned()))
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::UnclosedString, word, start, self.location())
+                    })?
+            }
+            Some(_) => {
+                let word = self.read_word();
+                match word.as_str() {
+                    "true" => TokenKind::Bool(true),
+                    "false" => TokenKind::Bool(false),
+                    _ => TokenKind::Symbol(self.parse_word_or(word, ErrorKind::InvalidSymbol)?),
+                }
+            }
             None => return Ok(None),
         };
 
@@ -102,15 +131,17 @@ impl Iterator for Lexer<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Token(pub TokenKind, pub (usize, usize), pub (usize, usize));
+#[derive(Debug, PartialEq, Clone)]
+pub struct Token(pub TokenKind, pub Location, pub Location);
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
     OpenParen,
     CloseParen,
     Symbol(Symbol),
     Number(f64),
+    Bool(bool),
+    String(String),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -119,6 +150,7 @@ pub enum Symbol {
     Minus,
     Multiply,
     Divide,
+    Equal,
 }
 
 impl std::fmt::Display for Symbol {
@@ -128,6 +160,7 @@ impl std::fmt::Display for Symbol {
             Self::Minus => write!(f, "-"),
             Self::Multiply => write!(f, "*"),
             Self::Divide => write!(f, "/"),
+            Self::Equal => write!(f, "="),
         }
     }
 }
@@ -141,6 +174,7 @@ impl FromStr for Symbol {
             "-" => Ok(Self::Minus),
             "*" => Ok(Self::Multiply),
             "/" => Ok(Self::Divide),
+            "=" => Ok(Self::Equal),
             _ => Err(ErrorKind::InvalidSymbol),
         }
     }
@@ -156,16 +190,18 @@ impl Seperator for char {
     }
 }
 
+pub type Location = (usize, usize);
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
     pub text: String,
-    pub start: (usize, usize),
-    pub end: (usize, usize),
+    pub start: Location,
+    pub end: Location,
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind, text: String, start: (usize, usize), end: (usize, usize)) -> Self {
+    pub const fn new(kind: ErrorKind, text: String, start: Location, end: Location) -> Self {
         Self {
             kind,
             text,
@@ -180,6 +216,7 @@ impl std::fmt::Display for Error {
         match self.kind {
             ErrorKind::InvalidNumber => write!(f, "'{}' is not a valid numeric literal", self.text),
             ErrorKind::InvalidSymbol => write!(f, "'{}' is not a valid symbol", self.text),
+            ErrorKind::UnclosedString => write!(f, "Unclosed string literal '{}'", self.text),
         }
     }
 }
@@ -190,6 +227,7 @@ impl std::error::Error for Error {}
 pub enum ErrorKind {
     InvalidSymbol,
     InvalidNumber,
+    UnclosedString,
 }
 
 #[cfg(test)]
@@ -364,6 +402,21 @@ mod tests {
                 "1.1.1".into(),
                 (0, 18),
                 (0, 18 + 5),
+            )))
+        );
+    }
+
+    #[test]
+    fn error_unclosed_string() {
+        let mut lexer = Lexer::new("\"hiii");
+
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::new(
+                ErrorKind::UnclosedString,
+                "\"hiii".to_owned(),
+                (0, 0),
+                (0, 5),
             )))
         );
     }

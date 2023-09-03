@@ -49,7 +49,7 @@ fn run(line: &str, prompt_len: usize) {
     };
 
     ast.iter().map(eval::eval).for_each(|res| match res {
-        Ok(res) => println!("\x1b[32m{res}\x1b[0m"),
+        Ok(res) => println!("{res}"),
         Err(err) => err!(err, prompt_len),
     });
 }
