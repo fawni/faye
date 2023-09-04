@@ -39,6 +39,11 @@ impl Lexer<'_> {
         self.input.next()
     }
 
+    fn newline(&mut self) {
+        self.line += 1;
+        self.col = 0;
+    }
+
     fn read_word(&mut self) -> String {
         let mut word = String::new();
         while let Some(c) = self.current() {
@@ -69,8 +74,7 @@ impl Lexer<'_> {
                 }
                 Some('\n') => {
                     self.advance();
-                    self.line += 1;
-                    self.col = 0;
+                    self.newline();
                 }
                 Some(_) => break,
                 None => return Ok(None),
@@ -98,8 +102,7 @@ impl Lexer<'_> {
                     }
                     self.advance();
                 }
-                self.line += 1;
-                self.col = 0;
+                self.newline();
                 TokenKind::Comment
             }
             Some('"') => {
@@ -113,11 +116,16 @@ impl Lexer<'_> {
                             self.advance();
                             break;
                         }
+                        Some('\n') => {
+                            self.advance();
+                            self.newline()
+                        }
                         Some('\\') => {
                             let esc_start = self.location();
                             self.advance();
                             match self.advance() {
                                 Some(c @ ('"' | '\\')) => string.push(c),
+                                Some('n') => string.push('\n'),
                                 Some(c) => {
                                     return Err(Error::new(
                                         ErrorKind::InvalidEscape(c),
