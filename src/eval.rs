@@ -85,7 +85,7 @@ impl std::fmt::Display for Value {
         match self {
             Self::Number(n) => write!(f, "{n}"),
             Self::Bool(b) => write!(f, "{b}"),
-            Self::String(s) => write!(f, "{s}"),
+            Self::String(s) => write!(f, "\"{s}\""),
         }
     }
 }

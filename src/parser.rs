@@ -40,7 +40,7 @@ impl TryFrom<Token> for Node {
             Token(TokenKind::Symbol(s), start, end) => Ok(Self(Expr::Function(s), start, end)),
             Token(
                 // not using `_` to get errors for unhandled tokens
-                TokenKind::Comment | TokenKind::OpenParen | TokenKind::CloseParen,
+                TokenKind::Comment(_) | TokenKind::OpenParen | TokenKind::CloseParen,
                 start,
                 end,
             ) => Err(Error::new(ErrorKind::Unreachable, start, end)),
@@ -54,7 +54,7 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
 
     while let Some(token) = lexer.read()? {
         let child = match token {
-            Token(TokenKind::Comment, ..) => continue,
+            Token(TokenKind::Comment(_), ..) => continue,
             Token(TokenKind::OpenParen, start, end) => {
                 let child = Node(Expr::List(Vec::new()), start, end);
                 parents.push(cur_node);

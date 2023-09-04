@@ -47,7 +47,7 @@ impl Lexer<'_> {
     fn read_word(&mut self) -> String {
         let mut word = String::new();
         while let Some(c) = self.current() {
-            if c.is_seperator() {
+            if c.is_separator() {
                 break;
             }
 
@@ -96,14 +96,16 @@ impl Lexer<'_> {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
             }
             Some(';') => {
+                self.advance();
+                let mut comment = String::new();
                 while let Some(c) = self.advance() {
                     if c == '\n' {
+                        self.newline();
                         break;
                     }
-                    self.advance();
+                    comment.push(c);
                 }
-                self.newline();
-                TokenKind::Comment
+                TokenKind::Comment(comment)
             }
             Some('"') => {
                 self.advance();
@@ -111,48 +113,43 @@ impl Lexer<'_> {
                 let mut string = String::new();
 
                 loop {
-                    match self.current() {
-                        Some('"') => {
-                            self.advance();
-                            break;
-                        }
-                        Some('\n') => {
-                            self.advance();
-                            self.newline()
-                        }
-                        Some('\\') => {
-                            let esc_start = self.location();
-                            self.advance();
-                            match self.advance() {
-                                Some(c @ ('"' | '\\')) => string.push(c),
-                                Some('n') => string.push('\n'),
-                                Some(c) => {
-                                    return Err(Error::new(
-                                        ErrorKind::InvalidEscape(c),
-                                        esc_start,
-                                        self.location(),
-                                    ))
-                                }
-                                None => {
-                                    return Err(Error::new(
-                                        ErrorKind::UnclosedString,
-                                        start,
-                                        quote_end,
-                                    ))
-                                }
+                    let ch_start = self.location();
+                    string.push(match self.advance() {
+                        Some('"') => break,
+                        Some('\\') => match self.advance() {
+                            Some(c @ ('"' | '\\')) => c,
+                            Some('n') => '\n',
+                            Some(c) => {
+                                return Err(Error::new(
+                                    ErrorKind::InvalidEscape(c),
+                                    ch_start,
+                                    self.location(),
+                                ))
                             }
+                            None => {
+                                return Err(Error::new(ErrorKind::UnclosedString, start, quote_end))
+                            }
+                        },
+                        Some('\n') => {
+                            self.newline();
+                            '\n'
                         }
-                        Some(c) => {
-                            string.push(c);
-                            self.advance();
-                        }
+                        Some(c) => c,
                         None => {
                             return Err(Error::new(ErrorKind::UnclosedString, start, quote_end))
                         }
-                    }
+                    });
                 }
 
-                TokenKind::String(string.to_owned())
+                if self.current().is_some_and(|c| !c.is_separator()) {
+                    while self.current().is_some_and(|c| !c.is_separator()) {
+                        self.advance();
+                    }
+
+                    return Err(Error::new(ErrorKind::InvalidString, start, self.location()));
+                }
+
+                TokenKind::String(string)
             }
             Some(_) => {
                 let word = self.read_word();
@@ -186,7 +183,7 @@ pub struct Token(pub TokenKind, pub Location, pub Location);
 pub enum TokenKind {
     OpenParen,
     CloseParen,
-    Comment,
+    Comment(String),
     Symbol(Symbol),
     Number(f64),
     Bool(bool),
@@ -229,12 +226,12 @@ impl FromStr for Symbol {
     }
 }
 
-trait Seperator {
-    fn is_seperator(&self) -> bool;
+trait Separator {
+    fn is_separator(&self) -> bool;
 }
 
-impl Seperator for char {
-    fn is_seperator(&self) -> bool {
+impl Separator for char {
+    fn is_separator(&self) -> bool {
         self.is_ascii_whitespace() || *self == '(' || *self == ')'
     }
 }
@@ -257,10 +254,11 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ErrorKind::InvalidNumber(n) => write!(f, "`{n}` is not a valid numeric literal"),
             ErrorKind::InvalidSymbol(s) => write!(f, "`{s}` is not a valid symbol"),
+            ErrorKind::InvalidNumber(n) => write!(f, "`{n}` is not a valid numeric literal"),
+            ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape sequence `\\{c}` in string"),
+            ErrorKind::InvalidString => write!(f, "Invalid string literal"),
             ErrorKind::UnclosedString => write!(f, "Unclosed string literal"),
-            ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape `\\{c}` in string"),
         }
     }
 }
@@ -271,8 +269,9 @@ impl std::error::Error for Error {}
 pub enum ErrorKind {
     InvalidSymbol(String),
     InvalidNumber(String),
-    UnclosedString,
     InvalidEscape(char),
+    InvalidString,
+    UnclosedString,
 }
 
 #[cfg(test)]
@@ -456,6 +455,16 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Err(Error::new(ErrorKind::UnclosedString, (0, 0), (0, 1),)))
+        );
+    }
+
+    #[test]
+    fn error_invalid_string() {
+        let mut lexer = Lexer::new("\"hiii\"222");
+
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::new(ErrorKind::InvalidString, (0, 0), (0, 9))))
         );
     }
 }
