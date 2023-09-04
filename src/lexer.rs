@@ -35,9 +35,8 @@ impl Lexer<'_> {
     }
 
     fn advance(&mut self) -> Option<char> {
-        let c = self.input.next();
         self.col += 1;
-        c
+        self.input.next()
     }
 
     fn read_word(&mut self) -> String {
@@ -54,19 +53,12 @@ impl Lexer<'_> {
         word
     }
 
-    fn parse_word_or<T: FromStr>(&mut self, word: String, kind: ErrorKind) -> Result<T, Error> {
-        let start = self.location();
-
-        word.parse()
-            .map_err(|_| Error::new(kind, word, start, self.location()))
-    }
-
-    fn parse_or<T: FromStr>(&mut self, kind: ErrorKind) -> Result<T, Error> {
+    fn parse_or<T: FromStr>(&mut self, err: impl Fn(String) -> ErrorKind) -> Result<T, Error> {
         let start = self.location();
         let word = self.read_word();
 
         word.parse()
-            .map_err(|_| Error::new(kind, word, start, self.location()))
+            .map_err(|_| Error::new(err(word), start, self.location()))
     }
 
     pub fn read(&mut self) -> Result<Option<Token>, Error> {
@@ -100,20 +92,57 @@ impl Lexer<'_> {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
             }
             Some('"') => {
-                let word = self.read_word();
-                word.strip_prefix('"')
-                    .and_then(|s| s.strip_suffix('"'))
-                    .map(|s| TokenKind::String(s.to_owned()))
-                    .ok_or_else(|| {
-                        Error::new(ErrorKind::UnclosedString, word, start, self.location())
-                    })?
+                self.advance();
+                let quote_end = self.location();
+                let mut str = String::new();
+
+                loop {
+                    match self.current() {
+                        Some('"') => {
+                            self.advance();
+                            break;
+                        }
+                        Some('\\') => {
+                            let esc_start = self.location();
+                            self.advance();
+                            match self.advance() {
+                                Some(c @ ('"' | '\\')) => str.push(c),
+                                Some(c) => {
+                                    return Err(Error::new(
+                                        ErrorKind::InvalidEscape(c),
+                                        esc_start,
+                                        self.location(),
+                                    ))
+                                }
+                                None => {
+                                    return Err(Error::new(
+                                        ErrorKind::UnclosedString,
+                                        start,
+                                        quote_end,
+                                    ))
+                                }
+                            }
+                        }
+                        Some(c) => {
+                            str.push(c);
+                            self.advance();
+                        }
+                        None => {
+                            return Err(Error::new(ErrorKind::UnclosedString, start, quote_end))
+                        }
+                    }
+                }
+
+                TokenKind::String(str.to_owned())
             }
             Some(_) => {
                 let word = self.read_word();
                 match word.as_str() {
                     "true" => TokenKind::Bool(true),
                     "false" => TokenKind::Bool(false),
-                    _ => TokenKind::Symbol(self.parse_word_or(word, ErrorKind::InvalidSymbol)?),
+                    _ => TokenKind::Symbol(word.parse().map_err(|_| {
+                        Error::new(ErrorKind::InvalidSymbol(word), start, self.location())
+                    })?),
                 }
             }
             None => return Ok(None),
@@ -175,7 +204,7 @@ impl FromStr for Symbol {
             "*" => Ok(Self::Multiply),
             "/" => Ok(Self::Divide),
             "=" => Ok(Self::Equal),
-            _ => Err(ErrorKind::InvalidSymbol),
+            _ => Err(ErrorKind::InvalidSymbol(s.to_owned())),
         }
     }
 }
@@ -195,28 +224,23 @@ pub type Location = (usize, usize);
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub text: String,
     pub start: Location,
     pub end: Location,
 }
 
 impl Error {
-    pub const fn new(kind: ErrorKind, text: String, start: Location, end: Location) -> Self {
-        Self {
-            kind,
-            text,
-            start,
-            end,
-        }
+    pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
+        Self { kind, start, end }
     }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ErrorKind::InvalidNumber => write!(f, "'{}' is not a valid numeric literal", self.text),
-            ErrorKind::InvalidSymbol => write!(f, "'{}' is not a valid symbol", self.text),
-            ErrorKind::UnclosedString => write!(f, "Unclosed string literal '{}'", self.text),
+        match &self.kind {
+            ErrorKind::InvalidNumber(n) => write!(f, "'{n}' is not a valid numeric literal"),
+            ErrorKind::InvalidSymbol(s) => write!(f, "'{s}' is not a valid symbol"),
+            ErrorKind::UnclosedString => write!(f, "Unclosed string literal"),
+            ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape '\\{c}' in string"),
         }
     }
 }
@@ -225,9 +249,10 @@ impl std::error::Error for Error {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
-    InvalidSymbol,
-    InvalidNumber,
+    InvalidSymbol(String),
+    InvalidNumber(String),
     UnclosedString,
+    InvalidEscape(char),
 }
 
 #[cfg(test)]
@@ -336,8 +361,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Err(Error::new(
-                ErrorKind::InvalidNumber,
-                "5.x".into(),
+                ErrorKind::InvalidNumber("5.x".into()),
                 (1, 7),
                 (1, 10),
             )))
@@ -398,8 +422,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Err(Error::new(
-                ErrorKind::InvalidNumber,
-                "1.1.1".into(),
+                ErrorKind::InvalidNumber("1.1.1".into()),
                 (0, 18),
                 (0, 18 + 5),
             )))
@@ -412,12 +435,7 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Err(Error::new(
-                ErrorKind::UnclosedString,
-                "\"hiii".to_owned(),
-                (0, 0),
-                (0, 5),
-            )))
+            Some(Err(Error::new(ErrorKind::UnclosedString, (0, 0), (0, 1),)))
         );
     }
 }

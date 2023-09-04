@@ -10,12 +10,9 @@ mod lexer;
 mod parser;
 mod repl;
 
+/// faye is a pretty lil lisp! run faye without arguments to start the repl.
 #[derive(Parser)]
-#[clap(
-    version = "0.1.1",
-    author = "fawn <fawn@envs.net>",
-    about = "faye is a pretty lil lisp! run faye with no arguments to start the repl."
-)]
+#[clap(version, author)]
 pub struct Args {
     #[arg(value_name = "Expression", short, long, help = "Evaluate a string")]
     pub eval: Option<String>,

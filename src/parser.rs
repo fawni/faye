@@ -256,8 +256,7 @@ mod tests {
             res,
             Err(Error::new(
                 ErrorKind::Lexer(LexerError::new(
-                    crate::lexer::ErrorKind::InvalidNumber,
-                    "1.2.3".into(),
+                    crate::lexer::ErrorKind::InvalidNumber("1.2.3".into()),
                     (0, 3),
                     (0, 8),
                 )),
