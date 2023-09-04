@@ -91,10 +91,21 @@ impl Lexer<'_> {
             Some('+' | '-') if matches!(self.peek(1), Some('0'..='9')) => {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
             }
+            Some(';') => {
+                while let Some(c) = self.advance() {
+                    if c == '\n' {
+                        break;
+                    }
+                    self.advance();
+                }
+                self.line += 1;
+                self.col = 0;
+                TokenKind::Comment
+            }
             Some('"') => {
                 self.advance();
                 let quote_end = self.location();
-                let mut str = String::new();
+                let mut string = String::new();
 
                 loop {
                     match self.current() {
@@ -106,7 +117,7 @@ impl Lexer<'_> {
                             let esc_start = self.location();
                             self.advance();
                             match self.advance() {
-                                Some(c @ ('"' | '\\')) => str.push(c),
+                                Some(c @ ('"' | '\\')) => string.push(c),
                                 Some(c) => {
                                     return Err(Error::new(
                                         ErrorKind::InvalidEscape(c),
@@ -124,7 +135,7 @@ impl Lexer<'_> {
                             }
                         }
                         Some(c) => {
-                            str.push(c);
+                            string.push(c);
                             self.advance();
                         }
                         None => {
@@ -133,7 +144,7 @@ impl Lexer<'_> {
                     }
                 }
 
-                TokenKind::String(str.to_owned())
+                TokenKind::String(string.to_owned())
             }
             Some(_) => {
                 let word = self.read_word();
@@ -167,6 +178,7 @@ pub struct Token(pub TokenKind, pub Location, pub Location);
 pub enum TokenKind {
     OpenParen,
     CloseParen,
+    Comment,
     Symbol(Symbol),
     Number(f64),
     Bool(bool),
@@ -237,10 +249,10 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ErrorKind::InvalidNumber(n) => write!(f, "'{n}' is not a valid numeric literal"),
-            ErrorKind::InvalidSymbol(s) => write!(f, "'{s}' is not a valid symbol"),
+            ErrorKind::InvalidNumber(n) => write!(f, "`{n}` is not a valid numeric literal"),
+            ErrorKind::InvalidSymbol(s) => write!(f, "`{s}` is not a valid symbol"),
             ErrorKind::UnclosedString => write!(f, "Unclosed string literal"),
-            ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape '\\{c}' in string"),
+            ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape `\\{c}` in string"),
         }
     }
 }

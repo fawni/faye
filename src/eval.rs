@@ -138,7 +138,7 @@ impl std::fmt::Display for ErrorKind {
             Self::MissingArguments => write!(f, "Function is missing arguments"),
             Self::InvalidFunction => write!(f, "Function undefined"),
             Self::InvalidArgument(n) => {
-                write!(f, "'{n}' is not a valid argument for this function")
+                write!(f, "`{n}` is not a valid argument for this function")
             }
             Self::CalculationError => write!(f, "Calculation error"),
         }

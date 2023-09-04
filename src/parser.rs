@@ -38,7 +38,12 @@ impl TryFrom<Token> for Node {
             Token(TokenKind::Bool(b), start, end) => Ok(Self(Expr::Bool(b), start, end)),
             Token(TokenKind::String(s), start, end) => Ok(Self(Expr::String(s), start, end)),
             Token(TokenKind::Symbol(s), start, end) => Ok(Self(Expr::Function(s), start, end)),
-            Token(_, start, end) => Err(Error::new(ErrorKind::Unreachable, start, end)),
+            Token(
+                // not using `_` to get errors for unhandled tokens
+                TokenKind::Comment | TokenKind::OpenParen | TokenKind::CloseParen,
+                start,
+                end,
+            ) => Err(Error::new(ErrorKind::Unreachable, start, end)),
         }
     }
 }
@@ -49,10 +54,7 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
 
     while let Some(token) = lexer.read()? {
         let child = match token {
-            Token(TokenKind::Number(n), start, end) => Node(Expr::Number(n), start, end),
-            Token(TokenKind::Symbol(s), start, end) => Node(Expr::Function(s), start, end),
-            Token(TokenKind::Bool(b), start, end) => Node(Expr::Bool(b), start, end),
-            Token(TokenKind::String(s), start, end) => Node(Expr::String(s), start, end),
+            Token(TokenKind::Comment, ..) => continue,
             Token(TokenKind::OpenParen, start, end) => {
                 let child = Node(Expr::List(Vec::new()), start, end);
                 parents.push(cur_node);
@@ -68,6 +70,7 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
                 cur_node = parent;
                 continue;
             }
+            _ => Node::try_from(token)?,
         };
 
         cur_node.push(child)?;
