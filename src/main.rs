@@ -19,16 +19,16 @@ pub struct Args {
     pub file: Option<String>,
 
     /// Evaluate a string
-    #[arg(value_name = "Expression", short, long)]
+    #[arg(value_name = "EXPRESSION", short, long)]
     pub eval: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    if let Some(file) = args.file {
-        let path = file.trim_start_matches("./").trim_start_matches(".\\");
-        return eval(std::fs::read_to_string(path)?, Some(path));
+    if let Some(path) = args.file {
+        let file = path.trim_start_matches("./").trim_start_matches(".\\");
+        return eval(std::fs::read_to_string(file)?, Some(file));
     }
 
     match args.eval {
@@ -43,7 +43,7 @@ macro_rules! err {
             "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}",
             $p,
             $e.start.0 + 1,
-            $e.start.1,
+            $e.start.1 + 1,
             $e.start.0 + 1,
             $s.split('\n').nth($e.start.0).unwrap(),
             " ".repeat($e.start.1 + 1),

@@ -7,7 +7,7 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     use rustyline::error::ReadlineError;
     use rustyline::{Config, Editor};
 
-    println!("\x1b[1;35mfaye\x1b[0m v0.1.2\npress \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
+    println!("\x1b[1;35mfaye\x1b[0m v0.1.3\npress \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
 
     let config = Config::builder()
         .auto_add_history(true)
