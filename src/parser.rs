@@ -6,21 +6,23 @@
 use crate::lexer::{Error as LexerError, Lexer, Location, Symbol, Token, TokenKind};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Node(pub Expr, pub Location, pub Location);
+pub struct Node(pub NodeKind, pub Location, pub Location);
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr {
+pub enum NodeKind {
     Number(f64),
     Bool(bool),
     String(String),
-    Function(Symbol),
+    Symbol(Symbol),
+    Keyword(Symbol),
     List(Vec<Node>),
+    Nil,
 }
 
 impl Node {
     fn push(&mut self, child: Self) -> Result<(), Error> {
         match self {
-            Self(Expr::List(c), ..) => {
+            Self(NodeKind::List(c), ..) => {
                 c.push(child);
                 Ok(())
             }
@@ -34,10 +36,12 @@ impl TryFrom<Token> for Node {
 
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token {
-            Token(TokenKind::Number(n), start, end) => Ok(Self(Expr::Number(n), start, end)),
-            Token(TokenKind::Bool(b), start, end) => Ok(Self(Expr::Bool(b), start, end)),
-            Token(TokenKind::String(s), start, end) => Ok(Self(Expr::String(s), start, end)),
-            Token(TokenKind::Symbol(s), start, end) => Ok(Self(Expr::Function(s), start, end)),
+            Token(TokenKind::Number(n), start, end) => Ok(Self(NodeKind::Number(n), start, end)),
+            Token(TokenKind::Bool(b), start, end) => Ok(Self(NodeKind::Bool(b), start, end)),
+            Token(TokenKind::String(s), start, end) => Ok(Self(NodeKind::String(s), start, end)),
+            Token(TokenKind::Symbol(s), start, end) => Ok(Self(NodeKind::Symbol(s), start, end)),
+            Token(TokenKind::Keyword(s), start, end) => Ok(Self(NodeKind::Keyword(s), start, end)),
+            Token(TokenKind::Nil, start, end) => Ok(Self(NodeKind::Nil, start, end)),
             Token(
                 // not using `_` to get errors for unhandled tokens
                 TokenKind::Comment(_) | TokenKind::OpenParen | TokenKind::CloseParen,
@@ -50,13 +54,17 @@ impl TryFrom<Token> for Node {
 
 pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
     let mut parents = Vec::new();
-    let mut cur_node = Node(Expr::List(Vec::new()), lexer.location(), lexer.location());
+    let mut cur_node = Node(
+        NodeKind::List(Vec::new()),
+        lexer.location(),
+        lexer.location(),
+    );
 
     while let Some(token) = lexer.read()? {
         let child = match token {
             Token(TokenKind::Comment(_), ..) => continue,
             Token(TokenKind::OpenParen, start, end) => {
-                let child = Node(Expr::List(Vec::new()), start, end);
+                let child = Node(NodeKind::List(Vec::new()), start, end);
                 parents.push(cur_node);
                 cur_node = child;
                 continue;
@@ -81,7 +89,7 @@ pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
     }
 
     match cur_node {
-        Node(Expr::List(body), ..) => Ok(body),
+        Node(NodeKind::List(body), ..) => Ok(body),
         _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
     }
 }
@@ -145,10 +153,10 @@ mod tests {
         assert_eq!(
             res,
             Ok(vec![Node(
-                Expr::List(vec![
-                    Node(Expr::Function(Symbol::Plus), (0, 1), (0, 2)),
-                    Node(Expr::Number(1.0), (0, 3), (0, 4)),
-                    Node(Expr::Number(2.0), (0, 5), (0, 6)),
+                NodeKind::List(vec![
+                    Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
+                    Node(NodeKind::Number(1.0), (0, 3), (0, 4)),
+                    Node(NodeKind::Number(2.0), (0, 5), (0, 6)),
                 ]),
                 (0, 0),
                 (0, 7),
@@ -163,15 +171,15 @@ mod tests {
         assert_eq!(
             res,
             Ok(vec![Node(
-                Expr::List(vec![
-                    Node(Expr::Function(Symbol::Plus), (0, 1), (0, 2)),
-                    Node(Expr::Number(2.5), (0, 3), (0, 6)),
-                    Node(Expr::Number(64.0), (0, 7), (0, 9)),
+                NodeKind::List(vec![
+                    Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
+                    Node(NodeKind::Number(2.5), (0, 3), (0, 6)),
+                    Node(NodeKind::Number(64.0), (0, 7), (0, 9)),
                     Node(
-                        Expr::List(vec![
-                            Node(Expr::Function(Symbol::Multiply), (0, 11), (0, 12)),
-                            Node(Expr::Number(2.0), (0, 13), (0, 14)),
-                            Node(Expr::Number(3.0), (0, 15), (0, 16)),
+                        NodeKind::List(vec![
+                            Node(NodeKind::Symbol(Symbol::from("*")), (0, 11), (0, 12)),
+                            Node(NodeKind::Number(2.0), (0, 13), (0, 14)),
+                            Node(NodeKind::Number(3.0), (0, 15), (0, 16)),
                         ]),
                         (0, 10),
                         (0, 17)
@@ -191,15 +199,15 @@ mod tests {
             res,
             Ok(vec![
                 Node(
-                    Expr::List(vec![
-                        Node(Expr::Function(Symbol::Divide), (0, 1), (0, 2)),
-                        Node(Expr::Number(6.0), (0, 3), (0, 4)),
-                        Node(Expr::Number(3.0), (0, 5), (0, 6)),
+                    NodeKind::List(vec![
+                        Node(NodeKind::Symbol(Symbol::from("/")), (0, 1), (0, 2)),
+                        Node(NodeKind::Number(6.0), (0, 3), (0, 4)),
+                        Node(NodeKind::Number(3.0), (0, 5), (0, 6)),
                         Node(
-                            Expr::List(vec![
-                                Node(Expr::Function(Symbol::Plus), (0, 8), (0, 9)),
-                                Node(Expr::Number(1.0), (0, 10), (0, 11)),
-                                Node(Expr::Number(2.0), (0, 12), (0, 13)),
+                            NodeKind::List(vec![
+                                Node(NodeKind::Symbol(Symbol::from("+")), (0, 8), (0, 9)),
+                                Node(NodeKind::Number(1.0), (0, 10), (0, 11)),
+                                Node(NodeKind::Number(2.0), (0, 12), (0, 13)),
                             ]),
                             (0, 7),
                             (0, 14),
@@ -209,19 +217,19 @@ mod tests {
                     (0, 15),
                 ),
                 Node(
-                    Expr::List(vec![
-                        Node(Expr::Function(Symbol::Multiply), (0, 17), (0, 18)),
-                        Node(Expr::Number(2.0), (0, 19), (0, 20)),
-                        Node(Expr::Number(5.0), (0, 21), (0, 22)),
+                    NodeKind::List(vec![
+                        Node(NodeKind::Symbol(Symbol::from("*")), (0, 17), (0, 18)),
+                        Node(NodeKind::Number(2.0), (0, 19), (0, 20)),
+                        Node(NodeKind::Number(5.0), (0, 21), (0, 22)),
                     ]),
                     (0, 16),
                     (0, 16 + 7),
                 ),
                 Node(
-                    Expr::List(vec![
-                        Node(Expr::Function(Symbol::Minus), (1, 1), (1, 2)),
-                        Node(Expr::Number(10.0), (1, 3), (1, 5)),
-                        Node(Expr::Number(5.0), (1, 6), (1, 7)),
+                    NodeKind::List(vec![
+                        Node(NodeKind::Symbol(Symbol::from("-")), (1, 1), (1, 2)),
+                        Node(NodeKind::Number(10.0), (1, 3), (1, 5)),
+                        Node(NodeKind::Number(5.0), (1, 6), (1, 7)),
                     ]),
                     (1, 0),
                     (1, 8),
@@ -237,7 +245,7 @@ mod tests {
         assert_eq!(
             res,
             Ok(vec![Node(
-                Expr::List(vec![Node(Expr::Number(2.5), (0, 1), (0, 9))]),
+                NodeKind::List(vec![Node(NodeKind::Number(2.5), (0, 1), (0, 9))]),
                 (0, 0),
                 (0, 10),
             )])

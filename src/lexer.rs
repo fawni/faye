@@ -91,6 +91,11 @@ impl Lexer<'_> {
                 self.advance();
                 TokenKind::CloseParen
             }
+            // todo: quote
+            // Some('\'') => {
+            //     self.advance();
+            //     TokenKind::Quote
+            // }
             Some('0'..='9') => TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?),
             Some('+' | '-') if matches!(self.peek(1), Some('0'..='9')) => {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
@@ -107,6 +112,11 @@ impl Lexer<'_> {
                 }
                 TokenKind::Comment(comment)
             }
+            Some(':') => {
+                self.advance();
+                let word = self.read_word();
+                TokenKind::Keyword(Symbol(word))
+            }
             Some('"') => {
                 self.advance();
                 let quote_end = self.location();
@@ -115,10 +125,14 @@ impl Lexer<'_> {
                 loop {
                     let ch_start = self.location();
                     string.push(match self.advance() {
-                        Some('"') => break,
+                        Some('"') => {
+                            string.push_str("\x1b[0m");
+                            break;
+                        }
                         Some('\\') => match self.advance() {
                             Some(c @ ('"' | '\\')) => c,
                             Some('n') => '\n',
+                            Some('e') => '\x1b',
                             Some(c) => {
                                 return Err(Error::new(
                                     ErrorKind::InvalidEscape(c),
@@ -156,9 +170,8 @@ impl Lexer<'_> {
                 match word.as_str() {
                     "true" => TokenKind::Bool(true),
                     "false" => TokenKind::Bool(false),
-                    _ => TokenKind::Symbol(word.parse().map_err(|_| {
-                        Error::new(ErrorKind::InvalidSymbol(word), start, self.location())
-                    })?),
+                    "nil" => TokenKind::Nil,
+                    _ => TokenKind::Symbol(Symbol::from(word)),
                 }
             }
             None => return Ok(None),
@@ -183,46 +196,28 @@ pub struct Token(pub TokenKind, pub Location, pub Location);
 pub enum TokenKind {
     OpenParen,
     CloseParen,
+    // Quote, // todo
     Comment(String),
     Symbol(Symbol),
     Number(f64),
     Bool(bool),
     String(String),
+    Keyword(Symbol),
+    Nil,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Symbol {
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Equal,
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct Symbol(pub String);
+
+impl Symbol {
+    pub fn from<T: Into<String>>(s: T) -> Self {
+        Self(s.into())
+    }
 }
 
 impl std::fmt::Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Plus => write!(f, "+"),
-            Self::Minus => write!(f, "-"),
-            Self::Multiply => write!(f, "*"),
-            Self::Divide => write!(f, "/"),
-            Self::Equal => write!(f, "="),
-        }
-    }
-}
-
-impl FromStr for Symbol {
-    type Err = ErrorKind;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "+" => Ok(Self::Plus),
-            "-" => Ok(Self::Minus),
-            "*" => Ok(Self::Multiply),
-            "/" => Ok(Self::Divide),
-            "=" => Ok(Self::Equal),
-            _ => Err(ErrorKind::InvalidSymbol(s.to_owned())),
-        }
+        write!(f, "{}", self.0)
     }
 }
 
@@ -254,7 +249,6 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ErrorKind::InvalidSymbol(s) => write!(f, "`{s}` is not a valid symbol"),
             ErrorKind::InvalidNumber(n) => write!(f, "`{n}` is not a valid numeric literal"),
             ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape sequence `\\{c}` in string"),
             ErrorKind::InvalidString => write!(f, "Invalid string literal"),
@@ -267,7 +261,6 @@ impl std::error::Error for Error {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
-    InvalidSymbol(String),
     InvalidNumber(String),
     InvalidEscape(char),
     InvalidString,
@@ -288,7 +281,11 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Symbol(Symbol::Plus), (0, 1), (0, 2))))
+            Some(Ok(Token(
+                TokenKind::Symbol(Symbol::from("+")),
+                (0, 1),
+                (0, 2)
+            )))
         );
         assert_eq!(
             lexer.next(),
@@ -309,7 +306,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Ok(Token(
-                TokenKind::Symbol(Symbol::Multiply),
+                TokenKind::Symbol(Symbol::from("*")),
                 (0, 16),
                 (0, 17)
             )))
@@ -343,7 +340,11 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Symbol(Symbol::Plus), (0, 1), (0, 2))))
+            Some(Ok(Token(
+                TokenKind::Symbol(Symbol::from("+")),
+                (0, 1),
+                (0, 2)
+            )))
         );
         assert_eq!(
             lexer.next(),
@@ -364,7 +365,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Ok(Token(
-                TokenKind::Symbol(Symbol::Multiply),
+                TokenKind::Symbol(Symbol::from("*")),
                 (1, 1),
                 (1, 2)
             )))
@@ -397,7 +398,11 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Symbol(Symbol::Minus), (0, 1), (0, 2))))
+            Some(Ok(Token(
+                TokenKind::Symbol(Symbol::from("-")),
+                (0, 1),
+                (0, 2)
+            )))
         );
         assert_eq!(
             lexer.next(),

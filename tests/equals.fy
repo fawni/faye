@@ -3,4 +3,4 @@
 ;;
 ;; SPDX-License-Identifier: Apache-2.0
 
-(= (= (+ 5 2.5) 7) false)
+(= (= (str "meoo" "oooow") "mrrrrrrrrp") false)

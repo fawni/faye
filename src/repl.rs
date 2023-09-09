@@ -3,11 +3,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub fn start() -> Result<(), Box<dyn std::error::Error>> {
-    use rustyline::error::ReadlineError;
-    use rustyline::{Config, Editor};
+use rustyline::{error::ReadlineError, Config, Editor};
 
-    println!("\x1b[1;35mfaye\x1b[0m v0.1.3\npress \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
+use crate::{
+    eval::{self, Context},
+    lexer::Lexer,
+    parser,
+};
+
+pub fn start() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
+    println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
+
+    let mut ctx = Context::default();
 
     let config = Config::builder()
         .auto_add_history(true)
@@ -18,7 +26,7 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         match rl.readline(prompt) {
-            Ok(line) => run(&line, prompt.len()),
+            Ok(line) => run(&mut ctx, &line, prompt.len()),
             Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
             Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
             Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
@@ -37,10 +45,7 @@ macro_rules! err {
     };
 }
 
-fn run(line: &str, prompt_len: usize) {
-    use crate::lexer::Lexer;
-    use crate::{eval, parser};
-
+fn run(ctx: &mut eval::Context, line: &str, prompt_len: usize) {
     let mut lex = Lexer::new(line);
 
     let ast = match parser::parse(&mut lex) {
@@ -48,7 +53,7 @@ fn run(line: &str, prompt_len: usize) {
         Err(err) => err!(err, prompt_len),
     };
 
-    ast.iter().map(eval::eval).for_each(|res| match res {
+    ast.iter().for_each(|n| match ctx.eval(n) {
         Ok(res) => println!("{res}"),
         Err(err) => err!(err, prompt_len),
     });
