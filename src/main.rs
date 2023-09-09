@@ -69,17 +69,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 macro_rules! err {
-    ($s:tt@$p:expr => $e:ident) => {
+    ($src:tt@$prompt_len:expr => $err:ident) => {
         eprintln!(
             "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}",
-            $p,
-            $e.start.0 + 1,
-            $e.start.1 + 1,
-            $e.start.0 + 1,
-            $s.split('\n').nth($e.start.0).unwrap(),
-            " ".repeat($e.start.1 + 1),
-            "^".repeat($e.end.1 - $e.start.1),
-            $e
+            $prompt_len,
+            $err.start.0 + 1,
+            $err.start.1 + 1,
+            $err.start.0 + 1,
+            highlight($src.split('\n').nth($err.start.0).unwrap()),
+            " ".repeat($err.start.1 + 1),
+            "^".repeat($err.end.1 - $err.start.1),
+            $err
         )
     };
 }
@@ -100,4 +100,13 @@ fn eval(code: &str, path: Option<&str>) {
         Ok(res) => println!("{res}"),
         Err(err) => err!(code@path => err),
     });
+}
+
+fn highlight(line: &str) -> String {
+    if let Some(i) = line.find(';') {
+        let (code, comment) = line.split_at(i);
+        format!("{code}\x1b[3;90m{comment}")
+    } else {
+        line.to_owned()
+    }
 }
