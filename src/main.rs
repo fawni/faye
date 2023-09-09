@@ -131,6 +131,7 @@ fn highlight(line: &str) -> String {
     for (i, c) in colors.iter().rev() {
         hl.insert_str(*i, c);
     }
+    hl.push_str("\x1b[0m");
 
     hl
 }
