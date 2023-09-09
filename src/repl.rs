@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use rustyline::{error::ReadlineError, Config, Editor};
+use rustyline::{error::ReadlineError, Config, Editor, Helper, completion, hint, validate, highlight};
 
 use crate::{
     eval::{self, Context},
@@ -11,18 +11,43 @@ use crate::{
     parser,
 };
 
+struct FayeHelper;
+
+impl Helper for FayeHelper {}
+
+impl completion::Completer for FayeHelper {
+    type Candidate = String;
+}
+
+impl hint::Hinter for FayeHelper {
+    type Hint = String;
+}
+
+impl highlight::Highlighter for FayeHelper {}
+
+impl validate::Validator for FayeHelper {
+    fn validate(&self, ctx: &mut validate::ValidationContext) -> rustyline::Result<validate::ValidationResult> {
+        let mut lex = Lexer::new(ctx.input());
+        match parser::parse(&mut lex) {
+            Err(e) if e.kind == parser::ErrorKind::UnclosedParen => Ok(validate::ValidationResult::Incomplete),
+            _ => Ok(validate::ValidationResult::Valid(None)),
+        }
+    }
+}
+
 pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
     println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
 
     let mut ctx = Context::default();
 
+    let prompt = "~> ";
     let config = Config::builder()
         .auto_add_history(true)
         .max_history_size(100)?
         .build();
-    let mut rl: Editor<(), _> = Editor::with_config(config)?;
-    let prompt = "~> ";
+    let mut rl = Editor::with_config(config)?;
+    rl.set_helper(Some(FayeHelper));
 
     loop {
         match rl.readline(prompt) {
