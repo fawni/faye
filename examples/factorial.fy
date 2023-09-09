@@ -3,4 +3,9 @@
 ;;
 ;; SPDX-License-Identifier: Apache-2.0
 
-(= (= (str "meoo" "oooow") "mrrrrrrrrp") false)
+(fn factorial (n)
+  (if (= n 0)
+    1
+    (* n (factorial (- n 1)))))
+
+(println (factorial 5))
