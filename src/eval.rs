@@ -65,7 +65,7 @@ impl UserFn {
                 None => return Err(ctx.error(ErrorKind::MissingArguments)),
             };
 
-            locals.0.insert(param.clone(), value);
+            locals.insert(param.clone(), value);
         }
 
         if args.next().is_some() {
@@ -157,6 +157,42 @@ impl Scope {
 
             Ok(Expr::Nil)
         });
+        scope.register("if", &|ctx, args| {
+            match ctx.get_n(args) {
+                Ok([cond, then, or_else]) => {
+                    if ctx.eval(&cond).and_then(|v| ctx.downcast(&v))? {
+                        ctx.eval(&then)
+                    } else {
+                        ctx.eval(&or_else)
+                    }
+                }
+                Err(_) => {
+                    let [cond, then] = ctx.get_n(args)?;
+                    if ctx.eval(&cond).and_then(|v| ctx.downcast(&v))? {
+                        ctx.eval(&then)
+                    } else {
+                        Ok(Expr::Nil)
+                    }
+                }
+            }
+        });
+        scope.register("and", &|ctx, args| {
+            for n in args {
+                if !ctx.eval(n).and_then(|v| ctx.downcast(&v))? {
+                    return Ok(Expr::Bool(false))
+                }
+            }
+            Ok(Expr::Bool(true))
+        });
+        scope.register("or", &|ctx, args| {
+            for n in args {
+                if ctx.eval(n).and_then(|v| ctx.downcast(&v))? {
+                    return Ok(Expr::Bool(true))
+                }
+            }
+            Ok(Expr::Bool(false))
+        });
+
 
         scope
     }

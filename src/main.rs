@@ -43,6 +43,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    if let Some(code) = args.eval {
+        eval(&code, None);
+        return Ok(());
+    }
+
     if let Some(code) = args.lex {
         let lex = lexer::Lexer::new(&code);
         for token in lex {
@@ -60,13 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    match args.eval {
-        Some(code) => {
-            eval(&code, None);
-            Ok(())
-        }
-        None => repl::start(),
-    }
+    repl::start()
 }
 
 macro_rules! err {
