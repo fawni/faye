@@ -3,37 +3,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use rustyline::{error::ReadlineError, Config, Editor, Helper, completion, hint, validate, highlight};
+use rustyline::{error::ReadlineError, validate};
 
-use crate::{
-    eval::{self, Context},
-    lexer::Lexer,
-    parser,
-};
-
-struct FayeHelper;
-
-impl Helper for FayeHelper {}
-
-impl completion::Completer for FayeHelper {
-    type Candidate = String;
-}
-
-impl hint::Hinter for FayeHelper {
-    type Hint = String;
-}
-
-impl highlight::Highlighter for FayeHelper {}
-
-impl validate::Validator for FayeHelper {
-    fn validate(&self, ctx: &mut validate::ValidationContext) -> rustyline::Result<validate::ValidationResult> {
-        let mut lex = Lexer::new(ctx.input());
-        match parser::parse(&mut lex) {
-            Err(e) if e.kind == parser::ErrorKind::UnclosedParen => Ok(validate::ValidationResult::Incomplete),
-            _ => Ok(validate::ValidationResult::Valid(None)),
-        }
-    }
-}
+use crate::{eval::Context, lexer::Lexer, parser};
 
 pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
@@ -42,12 +14,16 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = Context::default();
 
     let prompt = "~> ";
-    let config = Config::builder()
+    let config = rustyline::Config::builder()
         .auto_add_history(true)
         .max_history_size(100)?
         .build();
-    let mut rl = Editor::with_config(config)?;
+    let mut rl = rustyline::Editor::with_config(config)?;
     rl.set_helper(Some(FayeHelper));
+    rl.bind_sequence(
+        rustyline::KeyEvent(rustyline::KeyCode::Enter, rustyline::Modifiers::SHIFT),
+        rustyline::EventHandler::Simple(rustyline::Cmd::Newline),
+    );
 
     loop {
         match rl.readline(prompt) {
@@ -70,7 +46,7 @@ macro_rules! err {
     };
 }
 
-fn run(ctx: &mut eval::Context, line: &str, prompt_len: usize) {
+fn run(ctx: &mut Context, line: &str, prompt_len: usize) {
     let mut lex = Lexer::new(line);
 
     let ast = match parser::parse(&mut lex) {
@@ -82,4 +58,57 @@ fn run(ctx: &mut eval::Context, line: &str, prompt_len: usize) {
         Ok(res) => println!("{res}"),
         Err(err) => err!(err, prompt_len),
     });
+}
+
+struct FayeHelper;
+
+impl rustyline::Helper for FayeHelper {}
+
+impl rustyline::completion::Completer for FayeHelper {
+    type Candidate = String;
+}
+
+impl rustyline::hint::Hinter for FayeHelper {
+    type Hint = String;
+    fn hint(&self, line: &str, a: usize, b: &rustyline::Context) -> Option<Self::Hint> {
+        let hinter = rustyline::hint::HistoryHinter {};
+        hinter.hint(line, a, b)
+    }
+}
+
+impl rustyline::highlight::Highlighter for FayeHelper {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        _default: bool,
+    ) -> std::borrow::Cow<'b, str> {
+        format!("\x1b[36m{prompt}\x1b[0m").into()
+    }
+
+    fn highlight_char(&self, _line: &str, _cursor_pos: usize) -> bool {
+        true
+    }
+
+    fn highlight_hint<'h>(&self, hint: &'h str) -> std::borrow::Cow<'h, str> {
+        format!("\x1b[3;90m{hint}\x1b[0m").into()
+    }
+
+    fn highlight<'l>(&self, line: &'l str, _cursor_pos: usize) -> std::borrow::Cow<'l, str> {
+        crate::highlight(line).into()
+    }
+}
+
+impl validate::Validator for FayeHelper {
+    fn validate(
+        &self,
+        ctx: &mut validate::ValidationContext,
+    ) -> rustyline::Result<validate::ValidationResult> {
+        let mut lex = Lexer::new(ctx.input());
+        match parser::parse(&mut lex) {
+            Err(e) if e.kind == parser::ErrorKind::UnclosedParen => {
+                Ok(validate::ValidationResult::Incomplete)
+            }
+            _ => Ok(validate::ValidationResult::Valid(None)),
+        }
+    }
 }

@@ -32,6 +32,10 @@ pub struct Args {
     /// Print the parser output
     #[arg(value_name = "EXPRESSION", short, long)]
     pub ast: Option<String>,
+
+    /// Highlight matching brackets
+    #[arg(short, long)]
+    pub matching_brackets: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -102,10 +106,17 @@ fn eval(code: &str, path: Option<&str>) {
     });
 }
 
-fn highlight(line: &str) -> String {
+#[must_use]
+pub fn highlight(line: &str) -> String {
     let mut hl = line.to_owned();
     let mut lex = Lexer::new(line);
     let mut colors = Vec::new();
+
+    let mb = Args::parse().matching_brackets;
+    let mut paren_idx = 0;
+    let paren_colors = [
+        "\x1b[91m", "\x1b[93m", "\x1b[92m", "\x1b[94m", "\x1b[96m", "\x1b[95m", "\x1b[90m",
+    ];
 
     let mut i = 0;
     let mut is_fn = false;
@@ -113,7 +124,22 @@ fn highlight(line: &str) -> String {
         let color = match &res {
             Ok(Token(kind, ..)) => match kind {
                 TokenKind::Comment(_) => "\x1b[3;90m",
-                TokenKind::OpenParen | TokenKind::CloseParen => "\x1b[90m",
+                TokenKind::OpenParen | TokenKind::CloseParen if !mb => "\x1b[90m",
+                TokenKind::OpenParen => {
+                    if paren_idx > paren_colors.len() - 1 {
+                        paren_idx = 0;
+                    }
+                    let c = paren_colors[paren_idx];
+                    paren_idx += 1;
+                    c
+                }
+                TokenKind::CloseParen => {
+                    if paren_idx < 1 {
+                        paren_idx = 7;
+                    }
+                    paren_idx -= 1;
+                    paren_colors[paren_idx]
+                }
                 TokenKind::Number(_) | TokenKind::Bool(_) => "\x1b[36m",
                 TokenKind::String(_) => "\x1b[33m",
                 TokenKind::Symbol(_) if is_fn => "\x1b[35m",
