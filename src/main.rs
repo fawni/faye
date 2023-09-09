@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 macro_rules! err {
-    ($p:expr, $s:expr => $e:ident) => {
+    ($s:tt@$p:expr => $e:ident) => {
         eprintln!(
             "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}",
             $p,
@@ -93,12 +93,12 @@ fn eval(code: &str, path: Option<&str>) {
 
     let ast = match parser::parse(&mut lex) {
         Ok(ast) => ast,
-        Err(err) => return err!(path, code => err),
+        Err(err) => return err!(code@path => err),
     };
 
     ast.iter().for_each(|n| match ctx.eval(n) {
         Ok(Expr::Nil) => {}
         Ok(res) => println!("{res}"),
-        Err(err) => err!(path, code => err),
+        Err(err) => err!(code@path => err),
     });
 }
