@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
+use std::{collections::HashMap, io::IsTerminal};
 
 use crate::{
     lexer::{Location, Symbol},
@@ -140,7 +140,11 @@ impl Scope {
                 .eval_args(args)
                 .and_then(|v| ctx.downcast_all::<String>(&v))?
                 .join(" ");
-            println!("{string}");
+            if std::io::stdout().is_terminal() {
+                println!("{string}\x1b[m");
+            } else {
+                println!("{string}");
+            }
             Ok(Expr::Nil)
         });
         scope.register("quote", &|ctx, args| {

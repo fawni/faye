@@ -11,7 +11,7 @@ mod parser;
 mod repl;
 
 use eval::{Context, Expr};
-use lexer::Lexer;
+use lexer::{Lexer, Token, TokenKind};
 
 /// faye is a pretty lil lisp
 #[derive(Parser)]
@@ -69,10 +69,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 macro_rules! err {
-    ($src:tt@$prompt_len:expr => $err:ident) => {
+    ($src:tt@$path:expr => $err:ident) => {
         eprintln!(
             "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}",
-            $prompt_len,
+            $path,
             $err.start.0 + 1,
             $err.start.1 + 1,
             $err.start.0 + 1,
@@ -103,10 +103,34 @@ fn eval(code: &str, path: Option<&str>) {
 }
 
 fn highlight(line: &str) -> String {
-    if let Some(i) = line.find(';') {
-        let (code, comment) = line.split_at(i);
-        format!("{code}\x1b[3;90m{comment}")
-    } else {
-        line.to_owned()
+    let mut hl = line.to_owned();
+    let mut lex = Lexer::new(line);
+    let mut colors = Vec::new();
+
+    let mut i = 0;
+    let mut is_fn = false;
+    while let Some(res) = lex.next() {
+        let color = match &res {
+            Ok(Token(kind, ..)) => match kind {
+                TokenKind::Comment(_) => "\x1b[3;90m",
+                TokenKind::OpenParen | TokenKind::CloseParen => "\x1b[90m",
+                TokenKind::Number(_) | TokenKind::Bool(_) => "\x1b[36m",
+                TokenKind::String(_) => "\x1b[33m",
+                TokenKind::Symbol(_) if is_fn => "\x1b[35m",
+                TokenKind::Symbol(_) => "\x1b[32m",
+                TokenKind::Keyword(_) => "\x1b[34m",
+                TokenKind::Nil => "\x1b[37m",
+            },
+            Err(_) => "\x1b[31m",
+        };
+        colors.push((i, color));
+        i = lex.location().1;
+        is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
     }
+
+    for (i, c) in colors.iter().rev() {
+        hl.insert_str(*i, c);
+    }
+
+    hl
 }

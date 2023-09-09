@@ -125,10 +125,7 @@ impl Lexer<'_> {
                 loop {
                     let ch_start = self.location();
                     string.push(match self.advance() {
-                        Some('"') => {
-                            string.push_str("\x1b[0m");
-                            break;
-                        }
+                        Some('"') => break,
                         Some('\\') => match self.advance() {
                             Some(c @ ('"' | '\\')) => c,
                             Some('n') => '\n',
