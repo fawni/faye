@@ -149,12 +149,13 @@ impl Scope {
         });
         scope.register("quote", &|ctx, args| {
             let [expr] = ctx.get_n(args)?;
-            Ok(quote(&expr))
+            Ok(quote(expr))
         });
         scope.register("fn", &|ctx, args| {
             let [name, params, body] = ctx.get_n(args)?;
-            let name = ctx.downcast::<Symbol>(&quote(&name))?;
-            let params = ctx.downcast::<Vec<Symbol>>(&quote(&params))?;
+            let name = ctx.downcast::<Symbol>(&quote(name))?;
+            let params = ctx.downcast::<Vec<Symbol>>(&quote(params))?;
+            let body = body.clone();
 
             ctx.globals
                 .insert(name.clone(), Expr::UserFn(UserFn { name, params, body }));
@@ -163,16 +164,16 @@ impl Scope {
         });
         scope.register("if", &|ctx, args| match ctx.get_n(args) {
             Ok([cond, then, or_else]) => {
-                if ctx.eval(&cond).and_then(|v| ctx.downcast(&v))? {
-                    ctx.eval(&then)
+                if ctx.eval(cond).and_then(|v| ctx.downcast(&v))? {
+                    ctx.eval(then)
                 } else {
-                    ctx.eval(&or_else)
+                    ctx.eval(or_else)
                 }
             }
             Err(_) => {
                 let [cond, then] = ctx.get_n(args)?;
-                if ctx.eval(&cond).and_then(|v| ctx.downcast(&v))? {
-                    ctx.eval(&then)
+                if ctx.eval(cond).and_then(|v| ctx.downcast(&v))? {
+                    ctx.eval(then)
                 } else {
                     Ok(Expr::Nil)
                 }
@@ -259,7 +260,7 @@ impl Context {
                     match self.eval(fun)? {
                         Expr::BuiltinFn(f) => f.eval(self, args),
                         Expr::UserFn(f) => f.eval(self, args),
-                        _ => Err(self.error(ErrorKind::InvalidFunction)),
+                        v => Err(self.error(ErrorKind::InvalidFunction(v))),
                     }
                 }
                 None => Ok(Expr::Nil),
@@ -288,15 +289,14 @@ impl Context {
         args.iter().map(|n| self.eval(n)).collect()
     }
 
-    fn get_n<const N: usize>(&self, args: &[Node]) -> Result<[Node; N], Error> {
-        match Vec::from(args).try_into() {
-            Ok(a) => Ok(a),
-            Err(v) => Err(self.error(if v.len() < N {
-                ErrorKind::MissingArguments
+    fn get_n<'a, const N: usize>(&self, args: &'a [Node]) -> Result<&'a [Node; N], Error> {
+        args.try_into().map_err(|_| {
+            if args.len() < N {
+                self.error(ErrorKind::MissingArguments)
             } else {
-                ErrorKind::TooManyArguments
-            })),
-        }
+                self.error(ErrorKind::TooManyArguments)
+            }
+        })
     }
 }
 
@@ -421,7 +421,7 @@ pub enum ErrorKind {
     UnknownSymbol(Symbol),
     MissingArguments,
     TooManyArguments,
-    InvalidFunction,
+    InvalidFunction(Expr),
     InvalidArgument(Expr),
 }
 
@@ -431,7 +431,7 @@ impl std::fmt::Display for ErrorKind {
             Self::UnknownSymbol(sym) => write!(f, "Could not resolve symbol '{sym}' in scope"),
             Self::MissingArguments => write!(f, "Function is missing arguments"),
             Self::TooManyArguments => write!(f, "Function has extra arguments"),
-            Self::InvalidFunction => write!(f, "Function undefined"),
+            Self::InvalidFunction(v) => write!(f, "`{v}` is not a function"),
             Self::InvalidArgument(v) => {
                 write!(f, "`{v}` is not a valid argument for this function")
             }
@@ -476,7 +476,11 @@ mod tests {
         let res = Context::default().eval(&ast);
         assert_eq!(
             res,
-            Err(Error::new(ErrorKind::InvalidFunction, (0, 1), (0, 2)))
+            Err(Error::new(
+                ErrorKind::InvalidFunction(Expr::Number(1.)),
+                (0, 1),
+                (0, 2)
+            ))
         );
     }
 
