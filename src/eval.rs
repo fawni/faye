@@ -389,6 +389,7 @@ impl<'a, T: TryFrom<&'a Expr>> TryFrom<&'a Expr> for Vec<T> {
     fn try_from(value: &'a Expr) -> Result<Self, Self::Error> {
         match value {
             Expr::List(n) => n.iter().map(|n| n.try_into().map_err(|_| ())).collect(),
+            Expr::Nil => Ok(Vec::new()),
             _ => Err(()),
         }
     }

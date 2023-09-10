@@ -108,7 +108,6 @@ fn eval(code: &str, path: Option<&str>) {
 
 #[must_use]
 pub fn highlight(line: &str) -> String {
-    let mut hl = line.to_owned();
     let mut lex = Lexer::new(line);
     let mut colors = Vec::new();
 
@@ -118,7 +117,7 @@ pub fn highlight(line: &str) -> String {
         "\x1b[91m", "\x1b[93m", "\x1b[92m", "\x1b[94m", "\x1b[96m", "\x1b[95m", "\x1b[90m",
     ];
 
-    let mut i = 0;
+    let mut loc = (0, 0);
     let mut is_fn = false;
     while let Some(res) = lex.next() {
         let color = match &res {
@@ -149,15 +148,15 @@ pub fn highlight(line: &str) -> String {
             },
             Err(_) => "\x1b[31m",
         };
-        colors.push((i, color));
-        i = lex.location().1;
+        colors.push((loc, color));
+        loc = lex.location();
         is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
     }
 
-    for (i, c) in colors.iter().rev() {
-        hl.insert_str(*i, c);
+    let mut lines = line.split('\n').map(String::from).collect::<Vec<_>>();
+    for (loc, c) in colors.iter().rev() {
+        lines[loc.0].insert_str(loc.1, c);
     }
-    hl.push_str("\x1b[0m");
 
-    hl
+    lines.join("\n") + "\x1b[0m"
 }
