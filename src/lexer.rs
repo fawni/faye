@@ -13,6 +13,7 @@ pub struct Lexer<'a> {
 }
 
 impl Lexer<'_> {
+    #[must_use]
     pub fn new(input: &str) -> Lexer {
         Lexer {
             input: input.chars(),
@@ -22,10 +23,12 @@ impl Lexer<'_> {
     }
 
     #[inline]
+    #[must_use]
     pub const fn location(&self) -> Location {
         (self.line, self.col)
     }
 
+    #[must_use]
     pub fn current(&self) -> Option<char> {
         self.input.as_str().chars().next()
     }
@@ -238,6 +241,7 @@ pub struct Error {
 }
 
 impl Error {
+    #[must_use]
     pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
         Self { kind, start, end }
     }
@@ -286,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(14.0), (0, 3), (0, 5))))
+            Some(Ok(Token(TokenKind::Number(14.), (0, 3), (0, 5))))
         );
         assert_eq!(
             lexer.next(),
@@ -294,7 +298,7 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(333.0), (0, 11), (0, 14))))
+            Some(Ok(Token(TokenKind::Number(333.), (0, 11), (0, 14))))
         );
         assert_eq!(
             lexer.next(),
@@ -310,11 +314,11 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.0), (0, 18), (0, 19))))
+            Some(Ok(Token(TokenKind::Number(2.), (0, 18), (0, 19))))
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(5.0), (0, 20), (0, 21))))
+            Some(Ok(Token(TokenKind::Number(5.), (0, 20), (0, 21))))
         );
         assert_eq!(
             lexer.next(),
@@ -345,7 +349,7 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(14.0), (0, 3), (0, 5))))
+            Some(Ok(Token(TokenKind::Number(14.), (0, 3), (0, 5))))
         );
         assert_eq!(
             lexer.next(),
@@ -353,7 +357,7 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(333.0), (0, 11), (0, 14))))
+            Some(Ok(Token(TokenKind::Number(333.), (0, 11), (0, 14))))
         );
         assert_eq!(
             lexer.next(),
@@ -369,11 +373,11 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.0), (1, 3), (1, 4))))
+            Some(Ok(Token(TokenKind::Number(2.), (1, 3), (1, 4))))
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(5.0), (1, 5), (1, 6))))
+            Some(Ok(Token(TokenKind::Number(5.), (1, 5), (1, 6))))
         );
         assert_eq!(
             lexer.next(),
@@ -403,15 +407,15 @@ mod tests {
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(1.0), (0, 3), (0, 4))))
+            Some(Ok(Token(TokenKind::Number(1.), (0, 3), (0, 4))))
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(-2.0), (0, 5), (0, 7))))
+            Some(Ok(Token(TokenKind::Number(-2.), (0, 5), (0, 7))))
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(3.0), (0, 8), (0, 9))))
+            Some(Ok(Token(TokenKind::Number(3.), (0, 8), (0, 9))))
         );
         assert_eq!(
             lexer.next(),
@@ -426,11 +430,11 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.0), (0, 0), (0, 1))))
+            Some(Ok(Token(TokenKind::Number(2.), (0, 0), (0, 1))))
         );
         assert_eq!(
             lexer.next(),
-            Some(Ok(Token(TokenKind::Number(55.0), (0, 2), (0, 4))))
+            Some(Ok(Token(TokenKind::Number(55.), (0, 2), (0, 4))))
         );
         assert_eq!(
             lexer.next(),

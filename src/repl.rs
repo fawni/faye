@@ -5,13 +5,17 @@
 
 use rustyline::{error::ReadlineError, validate};
 
-use crate::{eval::Context, lexer::Lexer, parser};
+use crate::eval::Context;
+use crate::lexer::Lexer;
+use crate::parser;
+use crate::Highlighter;
 
-pub fn start() -> Result<(), Box<dyn std::error::Error>> {
+pub fn start(match_brackets: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
     println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
 
     let mut ctx = Context::default();
+    let hl = Highlighter::new(match_brackets);
 
     let prompt = "~> ";
     let config = rustyline::Config::builder()
@@ -19,11 +23,7 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
         .max_history_size(100)?
         .build();
     let mut rl = rustyline::Editor::with_config(config)?;
-    rl.set_helper(Some(FayeHelper));
-    rl.bind_sequence(
-        rustyline::KeyEvent(rustyline::KeyCode::Enter, rustyline::Modifiers::SHIFT),
-        rustyline::EventHandler::Simple(rustyline::Cmd::Newline),
-    );
+    rl.set_helper(Some(FayeHelper { highlighter: hl }));
 
     loop {
         match rl.readline(prompt) {
@@ -60,7 +60,9 @@ fn run(ctx: &mut Context, line: &str, prompt_len: usize) {
     });
 }
 
-struct FayeHelper;
+struct FayeHelper {
+    highlighter: Highlighter,
+}
 
 impl rustyline::Helper for FayeHelper {}
 
@@ -94,7 +96,7 @@ impl rustyline::highlight::Highlighter for FayeHelper {
     }
 
     fn highlight<'l>(&self, line: &'l str, _cursor_pos: usize) -> std::borrow::Cow<'l, str> {
-        crate::highlight(line).into()
+        self.highlighter.highlight(line).into()
     }
 }
 

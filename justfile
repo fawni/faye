@@ -18,6 +18,12 @@ install:
 uninstall:
     @cargo uninstall faye
 
+pull:
+    git pull
+    git pull gh master
+
 push: (test)
     git push
     git push gh
+
+sync: (pull) (push)

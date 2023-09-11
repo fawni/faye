@@ -230,6 +230,7 @@ pub struct Context {
 }
 
 impl Context {
+    #[must_use]
     pub fn new(start: Location, end: Location) -> Self {
         Self {
             globals: Scope::new(),
@@ -239,6 +240,7 @@ impl Context {
         }
     }
 
+    #[must_use]
     pub fn get(&self, sym: &Symbol) -> Option<&Expr> {
         self.locals.get(sym).or_else(|| self.globals.get(sym))
     }
@@ -389,7 +391,7 @@ impl<'a, T: TryFrom<&'a Expr>> TryFrom<&'a Expr> for Vec<T> {
     fn try_from(value: &'a Expr) -> Result<Self, Self::Error> {
         match value {
             Expr::List(n) => n.iter().map(|n| n.try_into().map_err(|_| ())).collect(),
-            Expr::Nil => Ok(Vec::new()),
+            Expr::Nil => Ok(Self::new()),
             _ => Err(()),
         }
     }
@@ -403,6 +405,7 @@ pub struct Error {
 }
 
 impl Error {
+    #[must_use]
     pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
         Self { kind, start, end }
     }
@@ -449,15 +452,15 @@ mod tests {
         let ast = Node(
             NodeKind::List(vec![
                 Node(NodeKind::Symbol(Symbol::from("*")), (0, 1), (0, 2)),
-                Node(NodeKind::Number(2.0), (0, 3), (0, 4)),
-                Node(NodeKind::Number(3.0), (0, 5), (0, 6)),
+                Node(NodeKind::Number(2.), (0, 3), (0, 4)),
+                Node(NodeKind::Number(3.), (0, 5), (0, 6)),
             ]),
             (0, 0),
             (0, 7),
         );
         let res = Context::default().eval(&ast);
 
-        assert_eq!(res, Ok(Expr::Number(6.0)));
+        assert_eq!(res, Ok(Expr::Number(6.)));
     }
 
     #[test]
@@ -465,9 +468,9 @@ mod tests {
         // (1 + 2)
         let ast = Node(
             NodeKind::List(vec![
-                Node(NodeKind::Number(1.0), (0, 1), (0, 2)),
+                Node(NodeKind::Number(1.), (0, 1), (0, 2)),
                 Node(NodeKind::Symbol(Symbol::from("+")), (0, 3), (0, 4)),
-                Node(NodeKind::Number(2.0), (0, 5), (0, 6)),
+                Node(NodeKind::Number(2.), (0, 5), (0, 6)),
             ]),
             (0, 0),
             (0, 7),
@@ -491,7 +494,7 @@ mod tests {
             NodeKind::List(vec![
                 Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
                 Node(NodeKind::String("hi".into()), (0, 3), (0, 7)),
-                Node(NodeKind::Number(5.0), (0, 8), (0, 9)),
+                Node(NodeKind::Number(5.), (0, 8), (0, 9)),
             ]),
             (0, 0),
             (0, 10),

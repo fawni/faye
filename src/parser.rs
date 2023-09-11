@@ -102,6 +102,7 @@ pub struct Error {
 }
 
 impl Error {
+    #[must_use]
     pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
         Self { kind, start, end }
     }
@@ -155,8 +156,8 @@ mod tests {
             Ok(vec![Node(
                 NodeKind::List(vec![
                     Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
-                    Node(NodeKind::Number(1.0), (0, 3), (0, 4)),
-                    Node(NodeKind::Number(2.0), (0, 5), (0, 6)),
+                    Node(NodeKind::Number(1.), (0, 3), (0, 4)),
+                    Node(NodeKind::Number(2.), (0, 5), (0, 6)),
                 ]),
                 (0, 0),
                 (0, 7),
@@ -174,12 +175,12 @@ mod tests {
                 NodeKind::List(vec![
                     Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
                     Node(NodeKind::Number(2.5), (0, 3), (0, 6)),
-                    Node(NodeKind::Number(64.0), (0, 7), (0, 9)),
+                    Node(NodeKind::Number(64.), (0, 7), (0, 9)),
                     Node(
                         NodeKind::List(vec![
                             Node(NodeKind::Symbol(Symbol::from("*")), (0, 11), (0, 12)),
-                            Node(NodeKind::Number(2.0), (0, 13), (0, 14)),
-                            Node(NodeKind::Number(3.0), (0, 15), (0, 16)),
+                            Node(NodeKind::Number(2.), (0, 13), (0, 14)),
+                            Node(NodeKind::Number(3.), (0, 15), (0, 16)),
                         ]),
                         (0, 10),
                         (0, 17)
@@ -201,13 +202,13 @@ mod tests {
                 Node(
                     NodeKind::List(vec![
                         Node(NodeKind::Symbol(Symbol::from("/")), (0, 1), (0, 2)),
-                        Node(NodeKind::Number(6.0), (0, 3), (0, 4)),
-                        Node(NodeKind::Number(3.0), (0, 5), (0, 6)),
+                        Node(NodeKind::Number(6.), (0, 3), (0, 4)),
+                        Node(NodeKind::Number(3.), (0, 5), (0, 6)),
                         Node(
                             NodeKind::List(vec![
                                 Node(NodeKind::Symbol(Symbol::from("+")), (0, 8), (0, 9)),
-                                Node(NodeKind::Number(1.0), (0, 10), (0, 11)),
-                                Node(NodeKind::Number(2.0), (0, 12), (0, 13)),
+                                Node(NodeKind::Number(1.), (0, 10), (0, 11)),
+                                Node(NodeKind::Number(2.), (0, 12), (0, 13)),
                             ]),
                             (0, 7),
                             (0, 14),
@@ -219,8 +220,8 @@ mod tests {
                 Node(
                     NodeKind::List(vec![
                         Node(NodeKind::Symbol(Symbol::from("*")), (0, 17), (0, 18)),
-                        Node(NodeKind::Number(2.0), (0, 19), (0, 20)),
-                        Node(NodeKind::Number(5.0), (0, 21), (0, 22)),
+                        Node(NodeKind::Number(2.), (0, 19), (0, 20)),
+                        Node(NodeKind::Number(5.), (0, 21), (0, 22)),
                     ]),
                     (0, 16),
                     (0, 16 + 7),
@@ -228,8 +229,8 @@ mod tests {
                 Node(
                     NodeKind::List(vec![
                         Node(NodeKind::Symbol(Symbol::from("-")), (1, 1), (1, 2)),
-                        Node(NodeKind::Number(10.0), (1, 3), (1, 5)),
-                        Node(NodeKind::Number(5.0), (1, 6), (1, 7)),
+                        Node(NodeKind::Number(10.), (1, 3), (1, 5)),
+                        Node(NodeKind::Number(5.), (1, 6), (1, 7)),
                     ]),
                     (1, 0),
                     (1, 8),
