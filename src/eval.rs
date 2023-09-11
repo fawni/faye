@@ -128,6 +128,10 @@ impl Scope {
             let args = ctx.eval_args(args)?;
             Ok(Expr::Bool(args.iter().all(|n| n.eq(&args[0]))))
         });
+        scope.register("<", &|ctx, args| ctx.compare::<f64>(args, |a, b| a < b));
+        scope.register(">", &|ctx, args| ctx.compare::<f64>(args, |a, b| a > b));
+        scope.register("<=", &|ctx, args| ctx.compare::<f64>(args, |a, b| a <= b));
+        scope.register(">=", &|ctx, args| ctx.compare::<f64>(args, |a, b| a >= b));
         scope.register("str", &|ctx, args| {
             Ok(Expr::String(
                 ctx.eval_args(args)
@@ -299,6 +303,19 @@ impl Context {
                 self.error(ErrorKind::TooManyArguments)
             }
         })
+    }
+
+    fn compare<T>(&mut self, args: &[Node], op: impl Fn(&T, &T) -> bool) -> Result<Expr, Error>
+    where
+        T: for<'a> TryFrom<&'a Expr> + PartialEq,
+    {
+        let args = self
+            .eval_args(args)
+            .and_then(|v| self.downcast_all::<T>(&v))?;
+
+        Ok(Expr::Bool(
+            args.iter().zip(args.iter().skip(1)).all(|(a, b)| op(a, b)),
+        ))
     }
 }
 
