@@ -23,7 +23,6 @@ impl Highlighter {
 
     #[must_use]
     pub fn highlight(&self, line: &str) -> String {
-        let mut lex = Lexer::new(line);
         let mut colors = Vec::new();
 
         let mut paren_idx = 0;
@@ -31,9 +30,8 @@ impl Highlighter {
             "\x1b[92m", "\x1b[93m", "\x1b[94m", "\x1b[96m", "\x1b[95m", "\x1b[90m",
         ];
 
-        let mut loc = (0, 0);
         let mut is_fn = false;
-        while let Some(res) = lex.next() {
+        for res in Lexer::new(line) {
             let color = match &res {
                 Ok(Token(kind, ..)) => match kind {
                     TokenKind::Comment(_) => "\x1b[3;90m",
@@ -64,8 +62,11 @@ impl Highlighter {
                 },
                 Err(_) => "\x1b[31m",
             };
+            let loc = match &res {
+                Ok(t) => t.1,
+                Err(e) => e.start,
+            };
             colors.push((loc, color));
-            loc = lex.location();
             is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
         }
 
