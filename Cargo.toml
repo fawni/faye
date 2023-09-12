@@ -2,7 +2,7 @@
 name = "faye"
 description = "a pretty lil lisp"
 authors = ["fawn <fawn@envs.net>", "rini <rini@rinici.de>"]
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://codeberg.org/fawn/faye"

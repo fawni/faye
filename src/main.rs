@@ -5,10 +5,7 @@
 
 use clap::Parser;
 
-use faye::eval::{Context, Expr};
-use faye::lexer::Lexer;
-use faye::repl;
-use faye::{parser, Highlighter};
+use faye::{Context, Expr, Highlighter, Lexer, Parser as FayeParser, Repl};
 
 /// faye is a pretty lil lisp
 #[derive(Parser)]
@@ -60,14 +57,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if let Some(code) = args.ast {
-        let mut lex = Lexer::new(&code);
-        let ast = parser::parse(&mut lex)?;
+        let parser = FayeParser::new(&code);
+        let ast = parser.parse()?;
         println!("{ast:?}");
 
         return Ok(());
     }
 
-    repl::start(match_brackets)
+    Repl::new(match_brackets).start()
 }
 
 macro_rules! err {
@@ -90,10 +87,10 @@ fn eval(code: &str, path: Option<&str>, match_brackets: bool) {
     let mut ctx = Context::default();
     let hl = Highlighter::new(match_brackets);
 
-    let mut lex = Lexer::new(code);
+    let parser = FayeParser::new(code);
     let path = path.unwrap_or("main.fy");
 
-    let ast = match parser::parse(&mut lex) {
+    let ast = match parser.parse() {
         Ok(ast) => ast,
         Err(err) => return err!(code@path => err, hl),
     };

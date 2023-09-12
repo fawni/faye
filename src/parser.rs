@@ -3,7 +3,62 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::lexer::{Error as LexerError, Lexer, Location, Symbol, Token, TokenKind};
+use crate::{Lexer, LexerError, Location, Symbol, Token, TokenKind};
+
+pub struct Parser {
+    input: String,
+}
+
+impl Parser {
+    pub fn new(input: &str) -> Self {
+        Self {
+            input: input.to_owned(),
+        }
+    }
+
+    pub fn parse(&self) -> Result<Vec<Node>, Error> {
+        let mut lexer = Lexer::new(&self.input);
+        let mut parents = Vec::new();
+        let mut cur_node = Node(
+            NodeKind::List(Vec::new()),
+            lexer.location(),
+            lexer.location(),
+        );
+
+        while let Some(token) = lexer.read()? {
+            let child = match token {
+                Token(TokenKind::Comment(_), ..) => continue,
+                Token(TokenKind::OpenParen, start, end) => {
+                    let child = Node(NodeKind::List(Vec::new()), start, end);
+                    parents.push(cur_node);
+                    cur_node = child;
+                    continue;
+                }
+                Token(TokenKind::CloseParen, start, end) => {
+                    let mut parent = parents
+                        .pop()
+                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseParen, start, end))?;
+                    cur_node.2 = end;
+                    parent.push(cur_node)?;
+                    cur_node = parent;
+                    continue;
+                }
+                _ => Node::try_from(token)?,
+            };
+
+            cur_node.push(child)?;
+        }
+
+        if !parents.is_empty() {
+            return Err(Error::new(ErrorKind::UnclosedParen, cur_node.1, cur_node.2));
+        }
+
+        match cur_node {
+            Node(NodeKind::List(body), ..) => Ok(body),
+            _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Node(pub NodeKind, pub Location, pub Location);
@@ -49,48 +104,6 @@ impl TryFrom<Token> for Node {
                 end,
             ) => Err(Error::new(ErrorKind::Unreachable, start, end)),
         }
-    }
-}
-
-pub fn parse(lexer: &mut Lexer) -> Result<Vec<Node>, Error> {
-    let mut parents = Vec::new();
-    let mut cur_node = Node(
-        NodeKind::List(Vec::new()),
-        lexer.location(),
-        lexer.location(),
-    );
-
-    while let Some(token) = lexer.read()? {
-        let child = match token {
-            Token(TokenKind::Comment(_), ..) => continue,
-            Token(TokenKind::OpenParen, start, end) => {
-                let child = Node(NodeKind::List(Vec::new()), start, end);
-                parents.push(cur_node);
-                cur_node = child;
-                continue;
-            }
-            Token(TokenKind::CloseParen, start, end) => {
-                let mut parent = parents
-                    .pop()
-                    .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseParen, start, end))?;
-                cur_node.2 = end;
-                parent.push(cur_node)?;
-                cur_node = parent;
-                continue;
-            }
-            _ => Node::try_from(token)?,
-        };
-
-        cur_node.push(child)?;
-    }
-
-    if !parents.is_empty() {
-        return Err(Error::new(ErrorKind::UnclosedParen, cur_node.1, cur_node.2));
-    }
-
-    match cur_node {
-        Node(NodeKind::List(body), ..) => Ok(body),
-        _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
     }
 }
 
@@ -149,8 +162,8 @@ mod tests {
 
     #[test]
     fn parse_list() {
-        let mut lexer = Lexer::new("(+ 1 2)");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("(+ 1 2)");
+        let res = parser.parse();
         assert_eq!(
             res,
             Ok(vec![Node(
@@ -167,8 +180,8 @@ mod tests {
 
     #[test]
     fn parse_nested_list() {
-        let mut lexer = Lexer::new("(+ 2.5 64 (* 2 3))");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("(+ 2.5 64 (* 2 3))");
+        let res = parser.parse();
         assert_eq!(
             res,
             Ok(vec![Node(
@@ -194,8 +207,8 @@ mod tests {
 
     #[test]
     fn parse_multiple_expressions() {
-        let mut lexer = Lexer::new("(/ 6 3 (+ 1 2)) (* 2 5)\n(- 10 5)");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("(/ 6 3 (+ 1 2)) (* 2 5)\n(- 10 5)");
+        let res = parser.parse();
         assert_eq!(
             res,
             Ok(vec![
@@ -241,8 +254,8 @@ mod tests {
 
     #[test]
     fn parse_float() {
-        let mut lexer = Lexer::new("(2.500000)");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("(2.500000)");
+        let res = parser.parse();
         assert_eq!(
             res,
             Ok(vec![Node(
@@ -255,15 +268,15 @@ mod tests {
 
     #[test]
     fn parse_empty() {
-        let mut lexer = Lexer::new("");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("");
+        let res = parser.parse();
         assert_eq!(res, Ok(Vec::new()));
     }
 
     #[test]
     fn error_invalid_number() {
-        let mut lexer = Lexer::new("(+ 1.2.3)");
-        let res = parse(&mut lexer);
+        let parser = Parser::new("(+ 1.2.3)");
+        let res = parser.parse();
         assert_eq!(
             res,
             Err(Error::new(
@@ -280,8 +293,8 @@ mod tests {
 
     #[test]
     fn error_unexpected_close_paren() {
-        let mut lexer = Lexer::new(")");
-        let res = parse(&mut lexer);
+        let parser = Parser::new(")");
+        let res = parser.parse();
         assert_eq!(
             res,
             Err(Error::new(ErrorKind::UnexpectedCloseParen, (0, 0), (0, 1)))

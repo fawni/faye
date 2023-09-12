@@ -5,35 +5,7 @@
 
 use rustyline::{error::ReadlineError, validate};
 
-use crate::eval::Context;
-use crate::lexer::Lexer;
-use crate::parser;
-use crate::Highlighter;
-
-pub fn start(match_brackets: bool) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
-    println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
-
-    let mut ctx = Context::default();
-    let hl = Highlighter::new(match_brackets);
-
-    let prompt = "~> ";
-    let config = rustyline::Config::builder()
-        .auto_add_history(true)
-        .max_history_size(100)?
-        .build();
-    let mut rl = rustyline::Editor::with_config(config)?;
-    rl.set_helper(Some(FayeHelper { highlighter: hl }));
-
-    loop {
-        match rl.readline(prompt) {
-            Ok(line) => run(&mut ctx, &line, prompt.len()),
-            Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
-            Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
-            Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
-        }
-    }
-}
+use crate::{Context, Highlighter, Parser, ParserErrorKind};
 
 macro_rules! err {
     ($e:ident, $l:ident) => {
@@ -46,18 +18,54 @@ macro_rules! err {
     };
 }
 
-fn run(ctx: &mut Context, line: &str, prompt_len: usize) {
-    let mut lex = Lexer::new(line);
+#[derive(Default)]
+pub struct Repl {
+    match_brackets: bool,
+}
 
-    let ast = match parser::parse(&mut lex) {
-        Ok(ast) => ast,
-        Err(err) => err!(err, prompt_len),
-    };
+impl Repl {
+    pub fn new(match_brackets: bool) -> Self {
+        Self { match_brackets }
+    }
 
-    ast.iter().for_each(|n| match ctx.eval(n) {
-        Ok(res) => println!("{res}"),
-        Err(err) => err!(err, prompt_len),
-    });
+    pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
+        println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
+
+        let mut ctx = Context::default();
+        let hl = Highlighter::new(self.match_brackets);
+
+        let prompt = "~> ";
+        let config = rustyline::Config::builder()
+            .auto_add_history(true)
+            .max_history_size(100)?
+            .build();
+        let mut rl = rustyline::Editor::with_config(config)?;
+        rl.set_helper(Some(FayeHelper { highlighter: hl }));
+
+        loop {
+            match rl.readline(prompt) {
+                Ok(line) => self.run(&mut ctx, &line, prompt.len()),
+                Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
+                Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
+                Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
+            }
+        }
+    }
+
+    fn run(&self, ctx: &mut Context, line: &str, prompt_len: usize) {
+        let parser = Parser::new(line);
+
+        let ast = match parser.parse() {
+            Ok(ast) => ast,
+            Err(err) => err!(err, prompt_len),
+        };
+
+        ast.iter().for_each(|n| match ctx.eval(n) {
+            Ok(res) => println!("{res}"),
+            Err(err) => err!(err, prompt_len),
+        });
+    }
 }
 
 struct FayeHelper {
@@ -105,9 +113,9 @@ impl validate::Validator for FayeHelper {
         &self,
         ctx: &mut validate::ValidationContext,
     ) -> rustyline::Result<validate::ValidationResult> {
-        let mut lex = Lexer::new(ctx.input());
-        match parser::parse(&mut lex) {
-            Err(e) if e.kind == parser::ErrorKind::UnclosedParen => {
+        let parser = Parser::new(ctx.input());
+        match parser.parse() {
+            Err(e) if e.kind == ParserErrorKind::UnclosedParen => {
                 Ok(validate::ValidationResult::Incomplete)
             }
             _ => Ok(validate::ValidationResult::Valid(None)),

@@ -3,7 +3,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use lexer::{Lexer, Token, TokenKind};
+pub use eval::{Context, Error as EvalError, ErrorKind as EvalErrorKind, Expr};
+pub use lexer::{Error as LexerError, Lexer, Location, Symbol, Token, TokenKind};
+pub use parser::{Error as ParserError, ErrorKind as ParserErrorKind, Node, NodeKind, Parser};
+pub use repl::Repl;
 
 pub mod eval;
 pub mod lexer;

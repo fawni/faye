@@ -5,10 +5,7 @@
 
 use std::{collections::HashMap, io::IsTerminal};
 
-use crate::{
-    lexer::{Location, Symbol},
-    parser::{Node, NodeKind},
-};
+use crate::{Location, Node, NodeKind, Symbol};
 
 type BuiltinCallback = dyn Fn(&mut Context, &[Node]) -> Result<Expr, Error>;
 
@@ -247,6 +244,10 @@ impl Context {
     #[must_use]
     pub fn get(&self, sym: &Symbol) -> Option<&Expr> {
         self.locals.get(sym).or_else(|| self.globals.get(sym))
+    }
+
+    pub fn list_globals(&self) -> Vec<Symbol> {
+        self.globals.0.keys().cloned().collect()
     }
 
     const fn error(&self, kind: ErrorKind) -> Error {
