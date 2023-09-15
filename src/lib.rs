@@ -13,19 +13,23 @@ pub mod lexer;
 pub mod parser;
 pub mod repl;
 
+/// A highlighter for faye code
 #[derive(Default)]
 pub struct Highlighter {
+    /// Whether to highlight matching brackets or not
     match_brackets: bool,
 }
 
 impl Highlighter {
+    /// Create a new highlighter and specify whether to highlight matching brackets or not
     #[must_use]
     pub const fn new(match_brackets: bool) -> Self {
         Self { match_brackets }
     }
 
+    /// Highlight a snippet of faye code
     #[must_use]
-    pub fn highlight(&self, line: &str) -> String {
+    pub fn highlight(&self, snippet: &str) -> String {
         let mut colors = Vec::new();
 
         let mut paren_idx = 0;
@@ -34,7 +38,7 @@ impl Highlighter {
         ];
 
         let mut is_fn = false;
-        for res in Lexer::new(line) {
+        for res in Lexer::new(snippet) {
             let color = match &res {
                 Ok(Token(kind, ..)) => match kind {
                     TokenKind::Comment(_) => "\x1b[3;90m",
@@ -73,7 +77,7 @@ impl Highlighter {
             is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
         }
 
-        let mut lines = line.split('\n').map(String::from).collect::<Vec<_>>();
+        let mut lines = snippet.split('\n').map(String::from).collect::<Vec<_>>();
         for (loc, c) in colors.iter().rev() {
             lines[loc.0].insert_str(loc.1, c);
         }

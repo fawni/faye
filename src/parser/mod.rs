@@ -3,19 +3,29 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Lexer, LexerError, Location, Symbol, Token, TokenKind};
+use crate::lexer::{Lexer, Token, TokenKind};
 
+pub use error::{Error, ErrorKind};
+pub use node::{Node, NodeKind};
+
+pub mod error;
+pub mod node;
+
+/// A parser for the AST
 pub struct Parser {
     input: String,
 }
 
 impl Parser {
+    /// Create a new parser instace from a string
+    #[must_use]
     pub fn new(input: &str) -> Self {
         Self {
             input: input.to_owned(),
         }
     }
 
+    /// Parse the input string into an AST
     pub fn parse(&self) -> Result<Vec<Node>, Error> {
         let mut lexer = Lexer::new(&self.input);
         let mut parents = Vec::new();
@@ -60,104 +70,10 @@ impl Parser {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Node(pub NodeKind, pub Location, pub Location);
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum NodeKind {
-    Number(f64),
-    Bool(bool),
-    String(String),
-    Symbol(Symbol),
-    Keyword(Symbol),
-    List(Vec<Node>),
-    Nil,
-}
-
-impl Node {
-    fn push(&mut self, child: Self) -> Result<(), Error> {
-        match self {
-            Self(NodeKind::List(c), ..) => {
-                c.push(child);
-                Ok(())
-            }
-            _ => Err(Error::new(ErrorKind::Unreachable, child.1, child.2)),
-        }
-    }
-}
-
-impl TryFrom<Token> for Node {
-    type Error = Error;
-
-    fn try_from(token: Token) -> Result<Self, Self::Error> {
-        match token {
-            Token(TokenKind::Number(n), start, end) => Ok(Self(NodeKind::Number(n), start, end)),
-            Token(TokenKind::Bool(b), start, end) => Ok(Self(NodeKind::Bool(b), start, end)),
-            Token(TokenKind::String(s), start, end) => Ok(Self(NodeKind::String(s), start, end)),
-            Token(TokenKind::Symbol(s), start, end) => Ok(Self(NodeKind::Symbol(s), start, end)),
-            Token(TokenKind::Keyword(s), start, end) => Ok(Self(NodeKind::Keyword(s), start, end)),
-            Token(TokenKind::Nil, start, end) => Ok(Self(NodeKind::Nil, start, end)),
-            Token(
-                // not using `_` to get errors for unhandled tokens
-                TokenKind::Comment(_) | TokenKind::OpenParen | TokenKind::CloseParen,
-                start,
-                end,
-            ) => Err(Error::new(ErrorKind::Unreachable, start, end)),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub start: Location,
-    pub end: Location,
-}
-
-impl Error {
-    #[must_use]
-    pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
-        Self { kind, start, end }
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<LexerError> for Error {
-    fn from(e: LexerError) -> Self {
-        let start = e.start;
-        let end = e.end;
-        Self::new(ErrorKind::Lexer(e), start, end)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ErrorKind {
-    Lexer(LexerError),
-    UnexpectedCloseParen,
-    UnclosedParen,
-    Unreachable,
-}
-
-impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Lexer(e) => write!(f, "{e}"),
-            Self::UnexpectedCloseParen => write!(f, "Unexpected closing parenthesis"),
-            Self::UnclosedParen => write!(f, "Unclosed parenthesis"),
-            Self::Unreachable => write!(f, "Unexpected parsing state reached"),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::{LexerError, Symbol};
+
     use super::*;
 
     #[test]
