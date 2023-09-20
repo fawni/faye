@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use faye::{Context, Highlighter, Parser};
 use rustyline::error::ReadlineError;
-
-use crate::{Context, Highlighter, Parser};
 
 use helper::FayeHelper;
 

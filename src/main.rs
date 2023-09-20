@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
+use faye::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
 
-use faye::{Context, Expr, Highlighter, Lexer, Parser as FayeParser, Repl};
+mod repl;
 
 /// faye is a pretty lil lisp
 #[derive(Parser)]
@@ -64,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    Repl::new(match_brackets).start()
+    repl::Repl::new(match_brackets).start()
 }
 
 macro_rules! err {

@@ -1,6 +1,5 @@
+use faye::{Highlighter, Parser, ParserErrorKind};
 use rustyline::validate;
-
-use crate::{Highlighter, Parser, ParserErrorKind};
 
 /// A rustyline helper for faye
 pub struct FayeHelper {

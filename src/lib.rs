@@ -6,14 +6,10 @@
 pub use eval::{Context, Error as EvalError, ErrorKind as EvalErrorKind, Expr};
 pub use lexer::{Error as LexerError, Lexer, Location, Symbol, Token, TokenKind};
 pub use parser::{Error as ParserError, ErrorKind as ParserErrorKind, Node, NodeKind, Parser};
-#[cfg(feature = "repl")]
-pub use repl::Repl;
 
 pub mod eval;
 pub mod lexer;
 pub mod parser;
-#[cfg(feature = "repl")]
-pub mod repl;
 
 /// A highlighter for faye code
 #[derive(Default)]
