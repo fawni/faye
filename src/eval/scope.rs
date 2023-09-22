@@ -74,10 +74,10 @@ impl Scope {
                 .join(" ");
             if std::io::stdout().is_terminal() {
                 println!("{string}\x1b[m");
+                Ok(Expr::Nil)
             } else {
-                println!("{string}");
+                Ok(Expr::String(string))
             }
-            Ok(Expr::Nil)
         });
         scope.register("quote", &|ctx, args| {
             let [node] = ctx.get_n(args)?;
