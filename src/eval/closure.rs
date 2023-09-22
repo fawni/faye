@@ -7,23 +7,27 @@ use crate::{Node, Symbol};
 
 use super::{scope::Scope, Context, Error, ErrorKind, Expr};
 
-/// A user-defined function
+/// A user-defined function anonymous function
 #[derive(Clone, Debug)]
-pub struct UserFn {
-    pub(crate) name: Symbol,
+pub struct Closure {
+    scope: Box<Scope>,
     params: Vec<Symbol>,
     body: Node,
 }
 
-impl UserFn {
+impl Closure {
     /// Create a new user-defined function
-    pub fn new(name: Symbol, params: Vec<Symbol>, body: Node) -> Self {
-        Self { name, params, body }
+    pub fn new(scope: Scope, params: Vec<Symbol>, body: Node) -> Self {
+        Self {
+            scope: Box::new(scope),
+            params,
+            body,
+        }
     }
 
     /// Evaluate the function with the given arguments
     pub(crate) fn eval(&self, ctx: &mut Context, args: &[Node]) -> Result<Expr, Error> {
-        let mut locals = Scope::default();
+        let mut locals = self.scope.clone();
         let mut args = args.iter();
 
         for param in &self.params {
@@ -39,12 +43,12 @@ impl UserFn {
             return Err(ctx.error(ErrorKind::TooManyArguments));
         }
 
-        ctx.eval_scoped(&self.body, locals)
+        ctx.eval_scoped(&self.body, *locals)
     }
 }
 
-impl PartialEq for UserFn {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+impl PartialEq for Closure {
+    fn eq(&self, _: &Self) -> bool {
+        false
     }
 }

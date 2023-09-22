@@ -12,6 +12,7 @@ pub mod error;
 pub mod expr;
 
 mod builtin;
+mod closure;
 mod scope;
 mod userfn;
 

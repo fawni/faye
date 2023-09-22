@@ -1,8 +1,13 @@
+when:
+    - event: [pull_request, manual]
+    - event: push
+      branch: master
+
 steps:
-  test:
-    image: rust
-    environment: [CARGO_TERM_COLOR=always]
-    commands:
-      - rustup component add clippy
-      - cargo clippy --verbose --all
-      - cargo test --verbose --all
+    test:
+        image: rust
+        environment: [CARGO_TERM_COLOR=always]
+        commands:
+            - rustup component add clippy
+            - cargo clippy --verbose --all
+            - cargo test --verbose --all

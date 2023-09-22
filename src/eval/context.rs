@@ -59,6 +59,7 @@ impl Context {
                     match self.eval(fun)? {
                         Expr::BuiltinFn(f) => f.eval(self, args),
                         Expr::UserFn(f) => f.eval(self, args),
+                        Expr::Closure(f) => f.eval(self, args),
                         v => Err(self.error(ErrorKind::InvalidFunction(v))),
                     }
                 }
@@ -66,6 +67,14 @@ impl Context {
             },
             n => Ok(Expr::from(n)),
         }
+    }
+
+    /// Evaluate an expression, temporarily replacing the current locals
+    pub(crate) fn eval_scoped(&mut self, ast: &Node, locals: Scope) -> Result<Expr, Error> {
+        let locals = std::mem::replace(&mut self.locals, locals);
+        let res = self.eval(ast);
+        self.locals = locals;
+        res
     }
 
     /// Downcast an expression to a specific type

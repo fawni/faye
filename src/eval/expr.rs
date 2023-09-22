@@ -5,7 +5,7 @@
 
 use crate::{Node, NodeKind, Symbol};
 
-use super::{builtin::BuiltinFn, userfn::UserFn};
+use super::{builtin::BuiltinFn, userfn::UserFn, closure::Closure};
 
 /// The result of an evaluated expression
 #[derive(Debug, PartialEq, Clone)]
@@ -18,6 +18,7 @@ pub enum Expr {
     List(Vec<Expr>),
     BuiltinFn(BuiltinFn),
     UserFn(UserFn),
+    Closure(Closure),
     Nil,
 }
 
@@ -40,6 +41,7 @@ impl std::fmt::Display for Expr {
             Self::Nil => write!(f, "nil"),
             Self::BuiltinFn(v) => write!(f, "{}", v.name),
             Self::UserFn(v) => write!(f, "{}", v.name),
+            Self::Closure(_) => write!(f, "#<lambda>"),
         }
     }
 }

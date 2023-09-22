@@ -77,7 +77,9 @@ impl Highlighter {
 
         let mut lines = snippet.split('\n').map(String::from).collect::<Vec<_>>();
         for (loc, c) in colors.iter().rev() {
-            lines[loc.0].insert_str(loc.1, c);
+            let line = &mut lines[loc.0];
+            let i = line.char_indices().nth(loc.1).unwrap().0;
+            line.insert_str(i, c);
         }
 
         lines.join("\n") + "\x1b[0m"

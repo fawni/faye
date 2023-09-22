@@ -5,12 +5,14 @@
 
 use std::{collections::HashMap, io::IsTerminal};
 
-use crate::{Node, Symbol};
+use crate::{Node, NodeKind, Symbol};
 
-use super::{builtin::BuiltinFn, userfn::UserFn, Context, Error, ErrorKind, Expr};
+use super::{
+    builtin::BuiltinFn, closure::Closure, userfn::UserFn, Context, Error, ErrorKind, Expr,
+};
 
 /// A scope that stores functions
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Scope(pub(crate) HashMap<Symbol, Expr>);
 
 impl Scope {
@@ -83,6 +85,8 @@ impl Scope {
             let [node] = ctx.get_n(args)?;
             Ok(Expr::from(node))
         });
+        scope.register("lambda", &lambda);
+        scope.register("λ", &lambda);
         scope.register("fn", &|ctx, args| {
             let [name, params, body] = ctx.get_n(args)?;
             let name = ctx.downcast::<Symbol>(&Expr::from(name))?;
@@ -91,6 +95,36 @@ impl Scope {
 
             ctx.globals
                 .insert(name.clone(), Expr::UserFn(UserFn::new(name, params, body)));
+
+            Ok(Expr::Nil)
+        });
+        scope.register("let", &|ctx, args| {
+            let (body, bindings) = args
+                .split_last()
+                .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?;
+
+            let mut locals = ctx.locals.clone();
+
+            for bind in bindings {
+                match bind {
+                    Node(NodeKind::List(b), ..) => {
+                        let [var, value] = ctx.get_n(b)?;
+                        let var = ctx.downcast::<Symbol>(&Expr::from(var))?;
+                        let value = ctx.eval(value)?;
+                        locals.insert(var, value);
+                    }
+                    _ => return Err(ctx.error(ErrorKind::InvalidArgument(Expr::from(bind)))),
+                }
+            }
+
+            ctx.eval_scoped(body, locals)
+        });
+        scope.register("const", &|ctx, args| {
+            let [name, value] = ctx.get_n(args)?;
+            let name = ctx.downcast::<Symbol>(&Expr::from(name))?;
+            let value = ctx.eval(value)?;
+
+            ctx.globals.insert(name, value);
 
             Ok(Expr::Nil)
         });
@@ -154,4 +188,16 @@ impl Scope {
     pub(crate) fn insert(&mut self, k: Symbol, v: Expr) {
         self.0.insert(k, v);
     }
+}
+
+fn lambda(ctx: &mut Context, args: &[Node]) -> Result<Expr, Error> {
+    let [params, body] = ctx.get_n(args)?;
+    let params = ctx.downcast::<Vec<Symbol>>(&Expr::from(params))?;
+    let body = body.clone();
+
+    Ok(Expr::Closure(Closure::new(
+        ctx.locals.clone(),
+        params,
+        body,
+    )))
 }
