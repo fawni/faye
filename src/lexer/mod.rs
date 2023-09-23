@@ -43,6 +43,11 @@ impl Lexer<'_> {
         self.input.as_str().chars().next()
     }
 
+    /// Get the unparsed input
+    pub fn get_unparsed(&self) -> &str {
+        self.input.as_str()
+    }
+
     /// Get the nth character ahead of the current character without advancing
     fn peek(&self, n: usize) -> Option<char> {
         self.input.as_str().chars().nth(n)
