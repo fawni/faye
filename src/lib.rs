@@ -28,7 +28,9 @@ impl Highlighter {
     /// Highlight a snippet of faye code
     #[must_use]
     pub fn highlight(&self, snippet: &str) -> String {
-        let mut colors = Vec::new();
+        let mut colored = String::with_capacity(snippet.len());
+
+        let mut lex = Lexer::new(snippet);
 
         let mut paren_idx = 0;
         let paren_colors = [
@@ -41,7 +43,9 @@ impl Highlighter {
         ];
 
         let mut is_fn = false;
-        for res in Lexer::new(snippet) {
+        let mut start = 0;
+        while let Some(res) = lex.next() {
+            let end = snippet.len() - lex.get_unparsed().len();
             let color = match &res {
                 Ok(Token(kind, ..)) => match kind {
                     TokenKind::Comment(_) => "\x1b[3;90m",
@@ -67,26 +71,21 @@ impl Highlighter {
                     TokenKind::String(_) => "\x1b[0;33m",
                     TokenKind::Bool(_) | TokenKind::Nil => "\x1b[3;32m",
                     TokenKind::Symbol(_) if is_fn => "\x1b[0;35m",
-                    TokenKind::Symbol(_) => "\x1b[0;37m",
+                    TokenKind::Symbol(_) => "\x1b[0m",
                     TokenKind::Keyword(_) => "\x1b[0;34m",
                 },
                 Err(_) => "\x1b[31m",
             };
-            let loc = match &res {
-                Ok(t) => t.1,
-                Err(e) => e.start,
-            };
-            colors.push((loc, color));
+
             is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
+
+            colored.push_str(color);
+            colored.push_str(&snippet[start..end]);
+            start = end;
         }
 
-        let mut lines = snippet.split('\n').map(String::from).collect::<Vec<_>>();
-        for (loc, c) in colors.iter().rev() {
-            let line = &mut lines[loc.0];
-            let i = line.char_indices().nth(loc.1).unwrap().0;
-            line.insert_str(i, c);
-        }
+        colored.push_str("\x1b[0m");
 
-        lines.join("\n") + "\x1b[0m"
+        colored
     }
 }
