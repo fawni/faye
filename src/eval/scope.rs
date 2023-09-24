@@ -69,6 +69,27 @@ impl Scope {
                     .join(""),
             ))
         });
+        scope.register("chars", &|ctx, args| {
+            let [node] = ctx.get_n(args)?;
+            let string = ctx.downcast::<String>(&Expr::from(node))?;
+
+            Ok(Expr::Vector(string.chars().map(Expr::Char).collect()))
+        });
+        scope.register("join", &|ctx, args| {
+            let [sep, coll] = ctx.get_n(args)?;
+            let sep = ctx.eval(sep).and_then(|expr| match expr {
+                Expr::Char(c) => Ok(c.to_string()),
+                Expr::String(s) => Ok(s),
+                _ => Err(ctx.error(ErrorKind::InvalidArgument(expr))),
+            })?;
+            let vec = ctx.eval(coll).and_then(|expr| match expr {
+                Expr::List(v) | Expr::Vector(v) => ctx.downcast_all::<String>(&v),
+                Expr::Nil => Ok(vec![]),
+                _ => Err(ctx.error(ErrorKind::InvalidArgument(expr))),
+            })?;
+
+            Ok(Expr::String(vec.join(&sep)))
+        });
         scope.register("println", &|ctx, args| {
             let string = ctx
                 .eval_args(args)
@@ -84,6 +105,21 @@ impl Scope {
         scope.register("quote", &|ctx, args| {
             let [node] = ctx.get_n(args)?;
             Ok(Expr::from(node))
+        });
+        scope.register("list", &|ctx, args| Ok(Expr::List(ctx.eval_args(args)?)));
+        scope.register("vector", &|ctx, args| {
+            Ok(Expr::Vector(ctx.eval_args(args)?))
+        });
+        scope.register("vec", &|ctx, args| {
+            let [node] = ctx.get_n(args)?;
+            let expr = ctx.eval(node)?;
+            let vec = match expr {
+                Expr::List(v) | Expr::Vector(v) => v,
+                Expr::Nil => vec![],
+                _ => return Err(ctx.error(ErrorKind::InvalidArgument(expr))),
+            };
+
+            Ok(Expr::Vector(vec))
         });
         scope.register("lambda", &lambda);
         scope.register("λ", &lambda);
@@ -160,6 +196,14 @@ impl Scope {
                 }
             }
             Ok(Expr::Bool(false))
+        });
+        scope.register("not", &|ctx, args| {
+            let [node] = ctx.get_n(args)?;
+            Ok(Expr::Bool(
+                !ctx.eval(node)
+                    .and_then(|v| ctx.downcast(&v))
+                    .unwrap_or(false),
+            ))
         });
 
         scope

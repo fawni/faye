@@ -44,6 +44,7 @@ impl Lexer<'_> {
     }
 
     /// Get the unparsed input
+    #[must_use]
     pub fn get_unparsed(&self) -> &str {
         self.input.as_str()
     }
@@ -115,11 +116,14 @@ impl Lexer<'_> {
                 self.advance();
                 TokenKind::CloseParen
             }
-            // todo: quote
-            // Some('\'') => {
-            //     self.advance();
-            //     TokenKind::Quote
-            // }
+            Some('[') => {
+                self.advance();
+                TokenKind::OpenBracket
+            }
+            Some(']') => {
+                self.advance();
+                TokenKind::CloseBracket
+            }
             Some('0'..='9') => TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?),
             Some('+' | '-') if matches!(self.peek(1), Some('0'..='9')) => {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
@@ -186,6 +190,39 @@ impl Lexer<'_> {
 
                 TokenKind::String(string)
             }
+            Some('\'') => {
+                self.advance();
+                let char = match self.advance() {
+                    Some('\\') => match self.advance() {
+                        Some(c @ ('"' | '\\')) => c,
+                        Some('n') => '\n',
+                        Some('e') => '\x1b',
+                        Some(c) => {
+                            return Err(Error::new(
+                                ErrorKind::InvalidEscape(c),
+                                start,
+                                self.location(),
+                            ))
+                        }
+                        None => {
+                            return Err(Error::new(
+                                ErrorKind::UnclosedChar,
+                                start,
+                                self.location(),
+                            ));
+                        }
+                    },
+                    Some(c) => c,
+                    _ => return Err(Error::new(ErrorKind::InvalidChar, start, self.location())),
+                };
+
+                if self.advance() != Some('\'') {
+                    self.read_word();
+                    return Err(Error::new(ErrorKind::InvalidChar, start, self.location()));
+                }
+
+                TokenKind::Char(char)
+            }
             Some(_) => {
                 let word = self.read_word();
                 match word.as_str() {
@@ -218,7 +255,7 @@ trait Separator {
 
 impl Separator for char {
     fn is_separator(&self) -> bool {
-        self.is_ascii_whitespace() || *self == '(' || *self == ')'
+        self.is_ascii_whitespace() || *self == '(' || *self == ')' || *self == '[' || *self == ']'
     }
 }
 

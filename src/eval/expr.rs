@@ -5,7 +5,7 @@
 
 use crate::{Node, NodeKind, Symbol};
 
-use super::{builtin::BuiltinFn, userfn::UserFn, closure::Closure};
+use super::{builtin::BuiltinFn, closure::Closure, userfn::UserFn};
 
 /// The result of an evaluated expression
 #[derive(Debug, PartialEq, Clone)]
@@ -13,9 +13,11 @@ pub enum Expr {
     Number(f64),
     Bool(bool),
     String(String),
+    Char(char),
     Symbol(Symbol),
     Keyword(String),
     List(Vec<Expr>),
+    Vector(Vec<Expr>),
     BuiltinFn(BuiltinFn),
     UserFn(UserFn),
     Closure(Closure),
@@ -28,11 +30,20 @@ impl std::fmt::Display for Expr {
             Self::Number(n) => write!(f, "{n}"),
             Self::Bool(b) => write!(f, "{b}"),
             Self::String(s) => write!(f, "\"{}\"", s.replace('"', "\\\"")),
+            Self::Char(c) => write!(f, "'{c}'"),
             Self::Symbol(s) => write!(f, "{s}"),
             Self::Keyword(s) => write!(f, ":{s}"),
             Self::List(v) => write!(
                 f,
                 "({})",
+                v.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
+            Self::Vector(v) => write!(
+                f,
+                "[{}]",
                 v.iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
@@ -49,14 +60,16 @@ impl std::fmt::Display for Expr {
 impl From<&Node> for Expr {
     fn from(node: &Node) -> Self {
         match &node.0 {
-            NodeKind::Number(n) => Expr::Number(*n),
-            NodeKind::Bool(b) => Expr::Bool(*b),
-            NodeKind::String(s) => Expr::String(s.clone()),
-            NodeKind::Symbol(s) => Expr::Symbol(s.clone()),
-            NodeKind::Keyword(Symbol(s)) => Expr::Keyword(s.clone()),
-            NodeKind::List(l) if l.is_empty() => Expr::Nil,
-            NodeKind::List(l) => Expr::List(l.iter().map(From::from).collect()),
-            NodeKind::Nil => Expr::Nil,
+            NodeKind::Number(n) => Self::Number(*n),
+            NodeKind::Bool(b) => Self::Bool(*b),
+            NodeKind::String(s) => Self::String(s.clone()),
+            NodeKind::Char(c) => Self::Char(*c),
+            NodeKind::Symbol(s) => Self::Symbol(s.clone()),
+            NodeKind::Keyword(Symbol(s)) => Self::Keyword(s.clone()),
+            NodeKind::List(l) if l.is_empty() => Self::Nil,
+            NodeKind::List(l) => Self::List(l.iter().map(From::from).collect()),
+            NodeKind::Vector(v) => Self::Vector(v.iter().map(From::from).collect()),
+            NodeKind::Nil => Self::Nil,
         }
     }
 }
@@ -65,6 +78,7 @@ impl From<&Expr> for String {
     fn from(v: &Expr) -> Self {
         match v {
             Expr::String(s) => s.clone(),
+            Expr::Char(c) => c.to_string(),
             _ => v.to_string(),
         }
     }

@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::lexer::{Lexer, Token, TokenKind};
+use crate::lexer::{Lexer, TokenKind};
 
 pub use error::{Error, ErrorKind};
 pub use node::{Node, NodeKind};
@@ -36,19 +36,41 @@ impl Parser {
         );
 
         while let Some(token) = lexer.read()? {
-            let child = match token {
-                Token(TokenKind::Comment(_), ..) => continue,
-                Token(TokenKind::OpenParen, start, end) => {
+            let (start, end) = (token.1, token.2);
+            let child = match token.0 {
+                TokenKind::Comment(_) => continue,
+                TokenKind::OpenParen => {
                     let child = Node(NodeKind::List(Vec::new()), start, end);
                     parents.push(cur_node);
                     cur_node = child;
                     continue;
                 }
-                Token(TokenKind::CloseParen, start, end) => {
+                TokenKind::CloseParen => {
                     let mut parent = parents
                         .pop()
-                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseParen, start, end))?;
+                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseBracket, start, end))?;
                     cur_node.2 = end;
+                    if !matches!(cur_node.0, NodeKind::List(_)) {
+                        return Err(Error::new(ErrorKind::UnmatchedBracket, start, end));
+                    }
+                    parent.push(cur_node)?;
+                    cur_node = parent;
+                    continue;
+                }
+                TokenKind::OpenBracket => {
+                    let child = Node(NodeKind::Vector(Vec::new()), start, end);
+                    parents.push(cur_node);
+                    cur_node = child;
+                    continue;
+                }
+                TokenKind::CloseBracket => {
+                    let mut parent = parents
+                        .pop()
+                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseBracket, start, end))?;
+                    cur_node.2 = end;
+                    if !matches!(cur_node.0, NodeKind::Vector(_)) {
+                        return Err(Error::new(ErrorKind::UnmatchedBracket, start, end));
+                    }
                     parent.push(cur_node)?;
                     cur_node = parent;
                     continue;
@@ -60,11 +82,15 @@ impl Parser {
         }
 
         if !parents.is_empty() {
-            return Err(Error::new(ErrorKind::UnclosedParen, cur_node.1, cur_node.2));
+            return Err(Error::new(
+                ErrorKind::UnclosedBracket,
+                cur_node.1,
+                cur_node.2,
+            ));
         }
 
         match cur_node {
-            Node(NodeKind::List(body), ..) => Ok(body),
+            Node(NodeKind::List(body) | NodeKind::Vector(body), ..) => Ok(body),
             _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
         }
     }
@@ -213,7 +239,11 @@ mod tests {
         let res = parser.parse();
         assert_eq!(
             res,
-            Err(Error::new(ErrorKind::UnexpectedCloseParen, (0, 0), (0, 1)))
+            Err(Error::new(
+                ErrorKind::UnexpectedCloseBracket,
+                (0, 0),
+                (0, 1)
+            ))
         );
     }
 }

@@ -27,6 +27,8 @@ impl std::fmt::Display for Error {
             ErrorKind::InvalidEscape(c) => write!(f, "Unknown escape sequence `\\{c}` in string"),
             ErrorKind::InvalidString => write!(f, "Invalid string literal"),
             ErrorKind::UnclosedString => write!(f, "Unclosed string literal"),
+            ErrorKind::InvalidChar => write!(f, "Invalid character literal"),
+            ErrorKind::UnclosedChar => write!(f, "Unclosed character literal"),
         }
     }
 }
@@ -40,4 +42,6 @@ pub enum ErrorKind {
     InvalidEscape(char),
     InvalidString,
     UnclosedString,
+    InvalidChar,
+    UnclosedChar,
 }

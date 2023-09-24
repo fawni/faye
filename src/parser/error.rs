@@ -40,8 +40,9 @@ impl From<LexerError> for Error {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
     Lexer(LexerError),
-    UnexpectedCloseParen,
-    UnclosedParen,
+    UnexpectedCloseBracket,
+    UnclosedBracket,
+    UnmatchedBracket,
     Unreachable,
 }
 
@@ -49,8 +50,9 @@ impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Lexer(e) => write!(f, "{e}"),
-            Self::UnexpectedCloseParen => write!(f, "Unexpected closing parenthesis"),
-            Self::UnclosedParen => write!(f, "Unclosed parenthesis"),
+            Self::UnexpectedCloseBracket => write!(f, "Unexpected closing bracket"),
+            Self::UnclosedBracket => write!(f, "Unclosed parenthesis"),
+            Self::UnmatchedBracket => write!(f, "Unmatched bracket"),
             Self::Unreachable => write!(f, "Unexpected parsing state reached"),
         }
     }

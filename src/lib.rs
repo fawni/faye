@@ -49,10 +49,15 @@ impl Highlighter {
             let color = match &res {
                 Ok(Token(kind, ..)) => match kind {
                     TokenKind::Comment(_) => "\x1b[3;90m",
-                    TokenKind::OpenParen | TokenKind::CloseParen if !self.match_brackets => {
+                    TokenKind::OpenParen
+                    | TokenKind::CloseParen
+                    | TokenKind::OpenBracket
+                    | TokenKind::CloseBracket
+                        if !self.match_brackets =>
+                    {
                         "\x1b[0;90m"
                     }
-                    TokenKind::OpenParen => {
+                    TokenKind::OpenParen | TokenKind::OpenBracket => {
                         if paren_idx > paren_colors.len() - 1 {
                             paren_idx = 0;
                         }
@@ -60,7 +65,7 @@ impl Highlighter {
                         paren_idx += 1;
                         c
                     }
-                    TokenKind::CloseParen => {
+                    TokenKind::CloseParen | TokenKind::CloseBracket => {
                         if paren_idx < 1 {
                             paren_idx = paren_colors.len();
                         }
@@ -68,10 +73,10 @@ impl Highlighter {
                         paren_colors[paren_idx]
                     }
                     TokenKind::Number(_) => "\x1b[0;36m",
-                    TokenKind::String(_) => "\x1b[0;33m",
+                    TokenKind::String(_) | TokenKind::Char(_) => "\x1b[0;33m",
                     TokenKind::Bool(_) | TokenKind::Nil => "\x1b[3;32m",
                     TokenKind::Symbol(_) if is_fn => "\x1b[0;35m",
-                    TokenKind::Symbol(_) => "\x1b[0m",
+                    TokenKind::Symbol(_) => "\x1b[0;37m",
                     TokenKind::Keyword(_) => "\x1b[0;34m",
                 },
                 Err(_) => "\x1b[31m",

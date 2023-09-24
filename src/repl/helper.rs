@@ -55,7 +55,7 @@ impl validate::Validator for FayeHelper {
     ) -> rustyline::Result<validate::ValidationResult> {
         let parser = Parser::new(ctx.input());
         match parser.parse() {
-            Err(e) if e.kind == ParserErrorKind::UnclosedParen => {
+            Err(e) if matches!(e.kind, ParserErrorKind::UnclosedBracket) => {
                 Ok(validate::ValidationResult::Incomplete)
             }
             _ => Ok(validate::ValidationResult::Valid(None)),

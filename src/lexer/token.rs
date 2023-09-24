@@ -12,12 +12,14 @@ pub struct Token(pub TokenKind, pub Location, pub Location);
 pub enum TokenKind {
     OpenParen,
     CloseParen,
-    // Quote, // todo
+    OpenBracket,
+    CloseBracket,
     Comment(String),
     Symbol(Symbol),
     Number(f64),
     Bool(bool),
     String(String),
+    Char(char),
     Keyword(Symbol),
     Nil,
 }
