@@ -1,0 +1,46 @@
+when:
+    branch: master
+    event: [push, deployment]
+    path:
+        include:
+            [
+                "web/src/*.rs",
+                "web/assets/**/*",
+                "web/index.html",
+                "web/Cargo.toml",
+            ]
+
+steps:
+    build:
+        image: rust
+        directory: web
+        environment: [CARGO_TERM_COLOR=always]
+        commands:
+            - rustup target add wasm32-unknown-unknown
+            - curl -sSL https://github.com/thedodd/trunk/releases/download/v0.17.5/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
+            - ./trunk build --release
+
+    pages:
+        image: alpine/git
+        directory: web
+        secrets: [CODEBERG_TOKEN]
+        commands:
+            - git config --global user.name "faye"
+            - git config --global user.email "faye@rinici.de"
+            - git clone https://$CODEBERG_TOKEN@codeberg.org/faye/pages.git
+            - cd pages
+            - rm -r *
+            - cp -r ../dist/. .
+            - cp ../LICENSE .
+            - git add .
+            - git commit -m "deploy fawn/faye@$(git -C .. rev-parse --short HEAD)"
+            - git push
+
+    vercel:
+        image: node
+        directory: web
+        secrets: [VERCEL_TOKEN]
+        commands:
+            - npm i -g vercel
+            - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+            - vercel deploy --yes --prod --token=$VERCEL_TOKEN ./dist --name faye

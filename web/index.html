@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <title>faye playground</title>
+        <meta
+            property="description"
+            content="pretty playground for a pretty lisp"
+        />
+        <link
+            rel="icon"
+            href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦋</text></svg>"
+        />
+
+        <meta name="theme-color" content="#ee95d2" />
+        <meta property="og:site_name" content="faye" />
+        <meta property="og:title" content="faye playground" />
+        <meta
+            property="og:description"
+            content="pretty playground for a pretty lisp 🦋"
+        />
+
+        <link data-trunk rel="rust" data-wasm-opt="s" />
+        <link data-trunk rel="sass" href="assets/index.scss" />
+        <link data-trunk rel="copy-dir" href="assets" />
+    </head>
+
+    <body>
+        <div class="noscript" id="nowasm" hidden>
+            Web Assembly (WASM) is not supported. Update to a browser that
+            supports WASM or enable JavaScript JIT to use faye playground.
+        </div>
+        <noscript>
+            <style>
+                body {
+                    background-color: var(--thorns-bg0);
+                }
+            </style>
+            <div class="noscript">
+                <span class="faye">faye</span> playground uses Web Assembly
+                (WASM) which unfortunately requires JavaScript. Turn on
+                JavaScript (and JavaScript JIT) to use.
+            </div>
+        </noscript>
+        <script>
+            try {
+                new WebAssembly.Module(Uint32Array.of(0x6d736100, 1));
+            } catch {
+                nowasm.hidden = false;
+                document.body.style.backgroundColor = "var(--thorns-bg0)";
+            }
+        </script>
+    </body>
+</html>
