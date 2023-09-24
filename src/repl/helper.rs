@@ -1,4 +1,4 @@
-use faye::{Highlighter, Parser, ParserErrorKind};
+use faye::prelude::{Highlighter, Parser, ParserErrorKind};
 use rustyline::validate;
 
 /// A rustyline helper for faye

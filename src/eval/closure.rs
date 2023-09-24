@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Node, Symbol};
-
-use super::{scope::Scope, Context, Error, ErrorKind, Expr};
+use super::{Context, Error, ErrorKind, Expr, Scope};
+use crate::prelude::{Node, Symbol};
 
 /// A user-defined function anonymous function
 #[derive(Clone, Debug)]

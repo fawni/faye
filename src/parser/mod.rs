@@ -8,8 +8,8 @@ use crate::lexer::{Lexer, TokenKind};
 pub use error::{Error, ErrorKind};
 pub use node::{Node, NodeKind};
 
-pub mod error;
-pub mod node;
+mod error;
+mod node;
 
 /// A parser for the AST
 pub struct Parser {
@@ -98,7 +98,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::{LexerError, Symbol};
+    use crate::prelude::{LexerError, Symbol};
 
     use super::*;
 

@@ -6,10 +6,12 @@
 use std::str::{Chars, FromStr};
 
 pub use error::{Error, ErrorKind};
-pub use token::{Symbol, Token, TokenKind};
+pub use symbol::Symbol;
+pub use token::{Token, TokenKind};
 
-pub mod error;
-pub mod token;
+mod error;
+mod symbol;
+mod token;
 
 /// A lexer for the parser
 #[derive(Debug)]

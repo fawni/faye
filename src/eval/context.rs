@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Location, Node, NodeKind, Symbol};
-
-use super::{scope::Scope, Error, ErrorKind, Expr};
+use super::{Error, ErrorKind, Expr, Scope};
+use crate::prelude::{Location, Node, NodeKind, Symbol};
 
 /// A context that stores global and local functions
 #[derive(Clone)]
@@ -37,7 +36,10 @@ impl Context {
     /// List all global functions
     #[must_use]
     pub fn list_globals(&self) -> Vec<Symbol> {
-        self.globals.0.keys().cloned().collect()
+        let mut globals = self.globals.0.keys().cloned().collect::<Vec<Symbol>>();
+        globals.sort();
+
+        globals
     }
 
     /// Create a new evaluation error

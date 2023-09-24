@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Node, Symbol};
-
 use super::{Context, Error, Expr};
+use crate::prelude::{Node, Symbol};
 
 /// type alias for builtin function callbacks
 type BuiltinCallback = dyn Fn(&mut Context, &[Node]) -> Result<Expr, Error>;

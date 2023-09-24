@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{Error, ErrorKind};
-use crate::{Location, Symbol, Token, TokenKind};
+use crate::prelude::{Location, Symbol, Token, TokenKind};
 
 /// A node in the AST with a start and end location
 #[derive(Debug, PartialEq, Clone)]

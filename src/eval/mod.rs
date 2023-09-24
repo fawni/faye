@@ -3,22 +3,25 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+pub use builtin::BuiltinFn;
+pub use closure::Closure;
 pub use context::Context;
 pub use error::{Error, ErrorKind};
 pub use expr::Expr;
-
-pub mod context;
-pub mod error;
-pub mod expr;
+pub use scope::Scope;
+pub use userfn::UserFn;
 
 mod builtin;
 mod closure;
+mod context;
+mod error;
+mod expr;
 mod scope;
 mod userfn;
 
 #[cfg(test)]
 mod tests {
-    use crate::{Node, NodeKind, Symbol};
+    use crate::prelude::{Node, NodeKind, Symbol};
 
     use super::*;
 

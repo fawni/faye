@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use faye::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
+use faye::prelude::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
 
 mod repl;
 

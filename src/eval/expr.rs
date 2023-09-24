@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Node, NodeKind, Symbol};
-
-use super::{builtin::BuiltinFn, closure::Closure, userfn::UserFn};
+use super::{BuiltinFn, Closure, UserFn};
+use crate::prelude::{Node, NodeKind, Symbol};
 
 /// The result of an evaluated expression
 #[derive(Debug, PartialEq, Clone)]

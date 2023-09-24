@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{LexerError, Location};
+use crate::prelude::{LexerError, Location};
 
 /// Parse errors with a start and end location
 #[derive(Debug, PartialEq, Eq, Clone)]

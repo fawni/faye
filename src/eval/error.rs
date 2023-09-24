@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Location, Symbol};
-
 use super::Expr;
+use crate::prelude::{Location, Symbol};
 
 /// An evaluation error with a start and end location
 #[derive(Debug, PartialEq, Clone)]

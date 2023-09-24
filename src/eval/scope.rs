@@ -5,11 +5,10 @@
 
 use std::{collections::HashMap, io::IsTerminal};
 
-use crate::{Node, NodeKind, Symbol};
-
 use super::{
     builtin::BuiltinFn, closure::Closure, userfn::UserFn, Context, Error, ErrorKind, Expr,
 };
+use crate::prelude::{Node, NodeKind, Symbol};
 
 /// A scope that stores functions
 #[derive(Debug, Default, Clone)]
