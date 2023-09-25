@@ -4,16 +4,16 @@ when:
     path:
         include:
             [
-                "web/src/*.rs",
-                "web/assets/**/*",
-                "web/index.html",
-                "web/Cargo.toml",
+                "faye-web/src/*.rs",
+                "faye-web/assets/**/*",
+                "faye-web/index.html",
+                "faye-web/Cargo.toml",
             ]
 
 steps:
     build:
         image: rust
-        directory: web
+        directory: faye-web
         environment: [CARGO_TERM_COLOR=always]
         commands:
             - rustup target add wasm32-unknown-unknown
@@ -22,7 +22,7 @@ steps:
 
     pages:
         image: alpine/git
-        directory: web
+        directory: faye-web
         secrets: [CODEBERG_TOKEN]
         commands:
             - git config --global user.name "faye"
@@ -38,7 +38,7 @@ steps:
 
     vercel:
         image: node
-        directory: web
+        directory: faye-web
         secrets: [VERCEL_TOKEN]
         commands:
             - npm i -g vercel
