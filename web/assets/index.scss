@@ -44,24 +44,12 @@ body {
     font-size: 13px;
 }
 
-input,
 .history-input {
     flex: 1 1 auto;
     padding: 0;
     margin: 0;
     display: inline-block;
-    border: none !important;
     background-color: transparent;
-    color: inherit;
-    outline: none;
-}
-
-input,
-.history-input {
-    font-family: inherit;
-    font-size: 100%;
-    line-height: 1.15;
-    margin: 0;
 }
 
 a {
@@ -72,6 +60,16 @@ a {
 ::selection {
     background-color: var(--thorns-accent-pink);
     color: var(--thorns-bg0);
+}
+
+#command_display {
+    display: inline-block;
+    width: 0;
+}
+
+#command_input {
+    outline: none;
+    color: transparent;
 }
 
 #terminal {
@@ -86,6 +84,8 @@ a {
     left: 50%;
     transform: translate(-50%, -50%);
     overflow-y: auto;
+    white-space: pre;
+    caret-color: var(--thorns-fg1);
 }
 
 @media (max-width: 500px) {
@@ -108,18 +108,11 @@ a {
 .faye {
     color: var(--thorns-purple);
     font-weight: bold;
+    letter-spacing: -1px;
 }
 
 .prompt {
     color: var(--thorns-cyan);
-}
-
-#command,
-.history-command {
-    display: flex;
-    flex-direction: row;
-    align-items: baseline;
-    gap: 6px;
 }
 
 .history-output {
@@ -177,8 +170,5 @@ a {
 .faye-error {
     color: var(--thorns-red);
     font-weight: bold;
-}
-
-[contenteditable] {
-    outline: none;
+    letter-spacing: -1px;
 }

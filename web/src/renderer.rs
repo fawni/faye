@@ -14,4 +14,7 @@ extern "C" {
 
     #[wasm_bindgen]
     pub fn scroll(el: &HtmlElement);
+
+    #[wasm_bindgen]
+    pub fn set_cursor(el: &HtmlElement, position: usize);
 }
