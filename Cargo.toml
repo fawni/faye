@@ -12,6 +12,7 @@ edition = "2021"
 name = "faye"
 description = "a pretty lil lisp"
 version = "0.5.0"
+readme = "README.md"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

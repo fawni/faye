@@ -1,4 +1,4 @@
-# web
+# faye-web
 
 pretty playground for a pretty lisp 🦋
 
