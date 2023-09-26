@@ -113,6 +113,7 @@ fn main() {
                                     }
                                 }
                             }
+                            br;
                         },
                         s => eval(&mut ctx, s),
                     };
