@@ -7,7 +7,7 @@
 
 faye is the name of coquettish tiny grey cat, the middle name of a pretty ombre girl in Missouri, and this lil lisp
 
-[Website](https://faye.codeberg.page)
+[Website](https://faye.codeberg.page) • [Docs](https://faye.codeberg.page/docs)
 
 ![scrot](.meta/repl.png)
 </div>
