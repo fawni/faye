@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 macro_rules! err {
     ($src:tt@$path:expr => $err:ident, $hl:ident) => {
         eprintln!(
-            "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}",
+            "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}\x1b[0m",
             $path,
             $err.start.0 + 1,
             $err.start.1 + 1,
@@ -89,7 +89,7 @@ fn eval(code: &str, path: Option<&str>, match_brackets: bool) {
     let hl = Highlighter::new(match_brackets);
 
     let parser = FayeParser::new(code);
-    let path = path.unwrap_or("main.fy");
+    let path = path.unwrap_or("<input>");
 
     let ast = match parser.parse() {
         Ok(ast) => ast,

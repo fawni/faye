@@ -47,6 +47,11 @@ impl Context {
         Error::new(kind, self.start, self.end)
     }
 
+    /// Check for errors while evaluating expressions in the given ast
+    pub fn check(&mut self, ast: &[Node]) -> Option<Error> {
+        ast.iter().map(|n| self.eval(n)).find_map(|n| n.err())
+    }
+
     /// Evaluate an expression
     pub fn eval(&mut self, ast: &Node) -> Result<Expr, Error> {
         match ast {

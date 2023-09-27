@@ -98,7 +98,7 @@ impl Scope {
                 println!("{string}\x1b[m");
                 Ok(Expr::Nil)
             } else {
-                Ok(Expr::String(string))
+                Ok(Expr::Display(string))
             }
         });
         scope.register("quote", &|ctx, args| {

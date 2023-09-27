@@ -1,7 +1,7 @@
 use crate::prelude::{Lexer, Token, TokenKind};
 
 /// A highlighter for faye code
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Highlighter {
     /// Whether to highlight matching brackets or not
     match_brackets: bool,

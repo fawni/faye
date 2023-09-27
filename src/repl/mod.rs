@@ -11,12 +11,23 @@ use helper::FayeHelper;
 mod helper;
 
 macro_rules! err {
-    ($e:ident, $l:ident) => {
-        return eprintln!(
-            "{}\x1b[1;31m{}\nerror\x1b[0m: {}",
-            " ".repeat($e.start.1 + $l),
-            "^".repeat($e.end.1 - $e.start.1),
-            $e
+    ($src:tt => $err:ident, $hl:ident) => {
+        eprintln!(
+            "\x1b[1;31merror\x1b[0;1m: {}\n\x1b[1;36m{:^4}|\x1b[0m {}\n\x1b[1;36m    | {}\x1b[31m{}\x1b[0m",
+            $err,
+            $err.start.0 + 1,
+            $hl.highlight($src.split('\n').nth($err.start.0).unwrap()),
+            " ".repeat($err.start.1),
+            "^".repeat($err.end.1 - $err.start.1),
+        )
+    };
+
+    ($err:ident, $pl:ident) => {
+        eprintln!(
+            "{}\x1b[1;31m{}\nerror\x1b[0;1m: {}",
+            " ".repeat($err.start.1 + $pl),
+            "^".repeat($err.end.1 - $err.start.1),
+            $err
         )
     };
 }
@@ -52,7 +63,7 @@ impl Repl {
 
         loop {
             match rl.readline(prompt) {
-                Ok(line) => Self::run(&mut ctx, &line, prompt.len()),
+                Ok(line) => Self::eval(&mut ctx, &line, hl, prompt.len()),
                 Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
                 Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
                 Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
@@ -60,17 +71,18 @@ impl Repl {
         }
     }
 
-    fn run(ctx: &mut Context, line: &str, prompt_len: usize) {
-        let parser = Parser::new(line);
+    fn eval(ctx: &mut Context, code: &str, hl: Highlighter, prompt_len: usize) {
+        let parser = Parser::new(code);
 
         let ast = match parser.parse() {
             Ok(ast) => ast,
-            Err(err) => err!(err, prompt_len),
+            Err(err) => return err!(err, prompt_len),
         };
 
-        ast.iter().for_each(|n| match ctx.eval(n) {
+        ast.iter().enumerate().for_each(|(i, n)| match ctx.eval(n) {
             Ok(res) => println!("{res}"),
-            Err(err) => err!(err, prompt_len),
+            Err(err) if i == 0 => err!(err, prompt_len),
+            Err(err) => err!(code => err, hl),
         });
     }
 }

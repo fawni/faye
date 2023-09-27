@@ -104,7 +104,7 @@ fn main() {
                         "symbols" => html! {
                             "symbols available in scope" br;
                             br;
-                            span style="color: var(--thorns-purple)" {
+                            span.faye-symbol-call {
                                 @for (i, sym) in ctx.list_globals().into_iter().enumerate() {
                                     @let s = sym.0;
                                     @match (12_usize).checked_sub(s.chars().count()) {

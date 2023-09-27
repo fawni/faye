@@ -43,7 +43,7 @@ pub enum ErrorKind {
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::UnknownSymbol(sym) => write!(f, "Could not resolve symbol '{sym}' in scope"),
+            Self::UnknownSymbol(sym) => write!(f, "Could not resolve symbol `{sym}` in scope"),
             Self::MissingArguments => write!(f, "Function is missing arguments"),
             Self::TooManyArguments => write!(f, "Function has extra arguments"),
             Self::InvalidFunction(v) => write!(f, "`{v}` is not a function"),
