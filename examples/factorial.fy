@@ -3,7 +3,7 @@
 ;;
 ;; SPDX-License-Identifier: Apache-2.0
 
-(fn factorial (n)
+(fn factorial [n]
   (if (< n 2)
     1
     (* n (factorial (- n 1)))))

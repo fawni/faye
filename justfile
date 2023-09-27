@@ -9,14 +9,17 @@ test:
 lint:
     cargo clippy -- -W clippy::pedantic -W clippy::nursery
 
-repl:
-    @cargo run -q
-
 install:
     @cargo install --path .
 
 uninstall:
     @cargo uninstall faye
+
+# Clean up all build artifacts across all the crates
+clean:
+    cargo clean
+    cargo clean -p faye-web
+    trunk clean -d faye-web/dist
 
 pull:
     git pull
