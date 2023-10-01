@@ -1,5 +1,6 @@
 <div align="center">
-<h1>faye</h1>
+
+# faye
 
 **[Website](https://faye.codeberg.page) • [Docs](https://faye.codeberg.page/docs)**
 
@@ -59,4 +60,4 @@ faye main.fy
 
 ## License
 
-[Apache-2.0](LICENSE)
+Source code is licensed under [Apache-2.0](LICENSE). faye's logo by [fawn](https://x4.pm) and [rini](https://rinici.de) is licensed under [CC-BY-NC-SA-4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
