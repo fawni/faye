@@ -250,7 +250,7 @@ impl Iterator for Lexer<'_> {
 }
 
 /// A trait for checking if a character is a separator
-trait Separator {
+pub trait Separator {
     /// Check if the character is a separator
     fn is_separator(&self) -> bool;
 }
