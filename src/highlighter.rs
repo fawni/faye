@@ -78,6 +78,7 @@ impl Highlighter {
             start = end;
         }
 
+        colored.push_str(&snippet[start..]); // push any remaining whitespace
         colored.push_str("\x1b[0m");
 
         colored

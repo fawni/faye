@@ -96,12 +96,12 @@ impl Lexer<'_> {
     pub fn read(&mut self) -> Result<Option<Token>, Error> {
         loop {
             match self.current() {
-                Some(' ') => {
-                    self.advance();
-                }
                 Some('\n') => {
                     self.advance();
                     self.newline();
+                }
+                Some(c) if c.is_ascii_whitespace() => {
+                    self.advance();
                 }
                 Some(_) => break,
                 None => return Ok(None),
