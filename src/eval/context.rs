@@ -49,7 +49,7 @@ impl Context {
 
     /// Check for errors while evaluating expressions in the given ast
     pub fn check(&mut self, ast: &[Node]) -> Option<Error> {
-        ast.iter().map(|n| self.eval(n)).find_map(|n| n.err())
+        ast.iter().map(|n| self.eval(n)).find_map(Result::err)
     }
 
     /// Evaluate an expression

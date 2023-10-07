@@ -16,6 +16,7 @@ pub struct Closure {
 
 impl Closure {
     /// Create a new user-defined function
+    #[must_use]
     pub fn new(scope: Scope, params: Vec<Symbol>, body: Node) -> Self {
         Self {
             scope: Box::new(scope),

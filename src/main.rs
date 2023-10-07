@@ -6,6 +6,8 @@
 use clap::Parser;
 use faye::prelude::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
 
+use repl::Repl;
+
 mod repl;
 
 /// faye is a pretty lil lisp
@@ -65,7 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    repl::Repl::new(match_brackets).start()
+    Repl::new(match_brackets).start();
+
+    Ok(())
 }
 
 macro_rules! err {

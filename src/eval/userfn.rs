@@ -16,6 +16,7 @@ pub struct UserFn {
 
 impl UserFn {
     /// Create a new user-defined function
+    #[must_use]
     pub fn new(name: Symbol, params: Vec<Symbol>, body: Node) -> Self {
         Self { name, params, body }
     }

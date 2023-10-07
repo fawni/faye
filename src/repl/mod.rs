@@ -4,11 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use faye::prelude::{Context, Highlighter, Parser};
-use rustyline::error::ReadlineError;
 
-use helper::FayeHelper;
+use editor::FayeEditor;
 
-mod helper;
+mod editor;
 
 macro_rules! err {
     ($src:tt => $err:ident, $hl:ident) => {
@@ -46,26 +45,20 @@ impl Repl {
     }
 
     /// Start the repl
-    pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(&self) {
         println!("\x1b[1;35mfaye \x1b[0m{}", env!("CARGO_PKG_VERSION"));
         println!("press \x1b[31mctrl+c\x1b[0m or \x1b[31mctrl+d\x1b[0m to exit\n");
 
         let mut ctx = Context::default();
         let hl = Highlighter::new(self.match_brackets);
 
-        let prompt = "~> ";
-        let config = rustyline::Config::builder()
-            .auto_add_history(true)
-            .max_history_size(100)?
-            .build();
-        let mut rl = rustyline::Editor::with_config(config)?;
-        rl.set_helper(Some(FayeHelper::new(hl)));
+        let mut pom = pomprt::with_multiline(FayeEditor::new(hl), "λ ", "\\ ");
 
         loop {
-            match rl.readline(prompt) {
-                Ok(line) => Self::eval(&mut ctx, &line, hl, prompt.len()),
-                Err(ReadlineError::Interrupted) => return Ok(println!("\x1b[31mctrl-c\x1b[0m")),
-                Err(ReadlineError::Eof) => return Ok(println!("\x1b[31mctrl-d\x1b[0m")),
+            match pom.read() {
+                Ok(line) => Self::eval(&mut ctx, &line, hl, 2),
+                Err(pomprt::Interrupt) => return println!("\x1b[31mctrl-c\x1b[0m"),
+                Err(pomprt::Eof) => return println!("\x1b[31mctrl-d\x1b[0m"),
                 Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
             }
         }
