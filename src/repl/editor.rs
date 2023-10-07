@@ -17,7 +17,7 @@ impl pomprt::Editor for FayeEditor {
 
     fn highlight_prompt(&self, prompt: &str, multiline: bool) -> String {
         if multiline {
-            format!("\x1b[1;90m{prompt}\x1b[0m")
+            format!("\x1b[90m{prompt}\x1b[0m")
         } else {
             format!("\x1b[36m{prompt}\x1b[0m")
         }

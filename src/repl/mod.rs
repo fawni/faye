@@ -52,11 +52,11 @@ impl Repl {
         let mut ctx = Context::default();
         let hl = Highlighter::new(self.match_brackets);
 
-        let mut pom = pomprt::with_multiline(FayeEditor::new(hl), "λ ", "\\ ");
+        let mut pom = pomprt::with_multiline(FayeEditor::new(hl), "~> ", "\\  ");
 
         loop {
             match pom.read() {
-                Ok(line) => Self::eval(&mut ctx, &line, hl, 2),
+                Ok(line) => Self::eval(&mut ctx, &line, hl, 3),
                 Err(pomprt::Interrupt) => return println!("\x1b[31mctrl-c\x1b[0m"),
                 Err(pomprt::Eof) => return println!("\x1b[31mctrl-d\x1b[0m"),
                 Err(err) => eprintln!("\x1b[1;31mrepl error\x1b[0m: {err}"),
