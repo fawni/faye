@@ -100,7 +100,7 @@ impl Lexer<'_> {
                     self.advance();
                     self.newline();
                 }
-                Some(c) if c.is_ascii_whitespace() => {
+                Some(c) if c.is_ascii_whitespace() || c == ',' => {
                     self.advance();
                 }
                 Some(_) => break,
@@ -257,7 +257,7 @@ pub trait Separator {
 
 impl Separator for char {
     fn is_separator(&self) -> bool {
-        self.is_ascii_whitespace() || *self == '(' || *self == ')' || *self == '[' || *self == ']'
+        self.is_ascii_whitespace() || matches!(self, '(' | ')' | '[' | ']' | ';' | ',')
     }
 }
 
