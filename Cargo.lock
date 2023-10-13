@@ -189,9 +189,9 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "pomprt"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a8b18b7ba7e5cd8c9f10cd1cf2df18605ad929cb00ad5c6b5491211e1fa6b5d"
+checksum = "332ffb5abf4c8fd50d7bf3467dd6e582b77c26ad7b657b935d0534286df48cbc"
 dependencies = [
  "libc",
  "winapi",
