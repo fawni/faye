@@ -62,52 +62,19 @@ enum Command {
 
 #[cfg(feature = "lsp")]
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = FayeArgs::parse();
-    let match_brackets = args.matching_brackets;
-
-    if let Some(Command::Lsp) = args.command {
-        faye_lsp::run().await;
-        return Ok(());
-    }
-
-    if let Some(path) = args.file {
-        let file = path.trim_start_matches("./").trim_start_matches(".\\");
-        eval(&std::fs::read_to_string(file)?, Some(file), match_brackets);
-        return Ok(());
-    }
-
-    if let Some(code) = args.eval {
-        eval(&code, None, match_brackets);
-        return Ok(());
-    }
-
-    if let Some(code) = args.lex {
-        let lex = Lexer::new(&code);
-        for token in lex {
-            println!("{:?}", token?);
-        }
-
-        return Ok(());
-    }
-
-    if let Some(code) = args.ast {
-        let parser = FayeParser::new(&code);
-        let ast = parser.parse()?;
-        println!("{ast:?}");
-
-        return Ok(());
-    }
-
-    Repl::new(match_brackets).start();
-
-    Ok(())
+async fn lsp_main() {
+    faye_lsp::run().await;
 }
 
-#[cfg(not(feature = "lsp"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = FayeArgs::parse();
     let match_brackets = args.matching_brackets;
+
+    #[cfg(feature = "lsp")]
+    if let Some(Command::Lsp) = args.command {
+        lsp_main();
+        return Ok(());
+    }
 
     if let Some(path) = args.file {
         let file = path.trim_start_matches("./").trim_start_matches(".\\");
