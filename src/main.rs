@@ -3,40 +3,110 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
+#[cfg(feature = "lsp")]
+use clap::Subcommand;
+use clap::{
+    builder::{styling::AnsiColor, Styles},
+    Parser,
+};
 use faye::prelude::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
 
 use repl::Repl;
 
 mod repl;
 
-/// faye is a pretty lil lisp
-#[derive(Parser)]
-#[clap(version, author)]
-pub struct Args {
-    /// Evaluate a file
-    #[arg()]
-    pub file: Option<String>,
-
-    /// Evaluate a string
-    #[arg(value_name = "EXPRESSION", short, long)]
-    pub eval: Option<String>,
-
-    /// Print the lexer output
-    #[arg(value_name = "EXPRESSION", short, long)]
-    pub lex: Option<String>,
-
-    /// Print the parser output
-    #[arg(value_name = "EXPRESSION", short, long)]
-    pub ast: Option<String>,
-
-    /// Highlight matching brackets
-    #[arg(short, long)]
-    pub matching_brackets: bool,
+// legacy yellow and green clap style
+fn clap_style() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Yellow.on_default())
+        .usage(AnsiColor::Yellow.on_default())
+        .literal(AnsiColor::Green.on_default())
+        .placeholder(AnsiColor::Green.on_default())
 }
 
+/// faye is a pretty lil lisp
+#[derive(Parser)]
+#[clap(version, author, styles = clap_style())]
+struct FayeArgs {
+    #[cfg(feature = "lsp")]
+    #[command(subcommand)]
+    command: Option<Command>,
+
+    /// Evaluate an expression from a file
+    #[arg()]
+    file: Option<String>,
+
+    /// Evaluate an expression from input
+    #[arg(value_name = "EXPRESSION", short, long)]
+    eval: Option<String>,
+
+    /// Lex an expression into tokens
+    #[arg(value_name = "EXPRESSION", short, long)]
+    lex: Option<String>,
+
+    /// Parse an expression into an AST
+    #[arg(value_name = "EXPRESSION", short, long)]
+    ast: Option<String>,
+
+    /// Highlight matching brackets in REPL
+    #[arg(short, long)]
+    matching_brackets: bool,
+}
+
+#[cfg(feature = "lsp")]
+#[derive(Subcommand)]
+enum Command {
+    /// Run the language server
+    Lsp,
+}
+
+#[cfg(feature = "lsp")]
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = FayeArgs::parse();
+    let match_brackets = args.matching_brackets;
+
+    if let Some(Command::Lsp) = args.command {
+        faye_lsp::run().await;
+        return Ok(());
+    }
+
+    if let Some(path) = args.file {
+        let file = path.trim_start_matches("./").trim_start_matches(".\\");
+        eval(&std::fs::read_to_string(file)?, Some(file), match_brackets);
+        return Ok(());
+    }
+
+    if let Some(code) = args.eval {
+        eval(&code, None, match_brackets);
+        return Ok(());
+    }
+
+    if let Some(code) = args.lex {
+        let lex = Lexer::new(&code);
+        for token in lex {
+            println!("{:?}", token?);
+        }
+
+        return Ok(());
+    }
+
+    if let Some(code) = args.ast {
+        let parser = FayeParser::new(&code);
+        let ast = parser.parse()?;
+        println!("{ast:?}");
+
+        return Ok(());
+    }
+
+    Repl::new(match_brackets).start();
+
+    Ok(())
+}
+
+#[cfg(not(feature = "lsp"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+    let args = FayeArgs::parse();
     let match_brackets = args.matching_brackets;
 
     if let Some(path) = args.file {
