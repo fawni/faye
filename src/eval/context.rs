@@ -4,26 +4,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{Error, ErrorKind, Expr, Scope};
-use crate::prelude::{Location, Node, NodeKind, Symbol};
+use crate::prelude::{Node, NodeKind, Span, Symbol};
 
 /// A context that stores global and local functions
 #[derive(Clone)]
 pub struct Context {
     pub(crate) globals: Scope,
     pub(crate) locals: Scope,
-    start: Location,
-    end: Location,
+    pub(crate) span: Span,
 }
 
 impl Context {
     /// Create a new context with the given start and end locations
     #[must_use]
-    pub fn new(start: Location, end: Location) -> Self {
+    pub fn new() -> Self {
         Self {
-            globals: Scope::new(),
+            globals: Scope::builtins(),
             locals: Scope::default(),
-            start,
-            end,
+            span: Span::default(),
         }
     }
 
@@ -43,8 +41,8 @@ impl Context {
     }
 
     /// Create a new evaluation error
-    pub(crate) const fn error(&self, kind: ErrorKind) -> Error {
-        Error::new(kind, self.start, self.end)
+    pub(crate) fn error(&self, kind: ErrorKind) -> Error {
+        Error::new(kind, self.span.clone())
     }
 
     /// Check for errors while evaluating expressions in the given ast
@@ -54,15 +52,14 @@ impl Context {
 
     /// Evaluate an expression
     pub fn eval(&mut self, ast: &Node) -> Result<Expr, Error> {
-        match ast {
-            Node(NodeKind::Symbol(sym), start, end) => Ok(self
+        match &ast.kind {
+            NodeKind::Symbol(sym) => Ok(self
                 .get(sym)
-                .ok_or_else(|| Error::new(ErrorKind::UnknownSymbol(sym.clone()), *start, *end))?
+                .ok_or_else(|| Error::new(ErrorKind::UnknownSymbol(sym.clone()), ast.span.clone()))?
                 .clone()),
-            Node(NodeKind::List(list), ..) => match list.split_first() {
+            NodeKind::List(list) => match list.split_first() {
                 Some((fun, args)) => {
-                    self.start = fun.1;
-                    self.end = fun.2;
+                    self.span = fun.span.clone();
                     match self.eval(fun)? {
                         Expr::BuiltinFn(f) => f.eval(self, args),
                         Expr::UserFn(f) => f.eval(self, args),
@@ -72,7 +69,7 @@ impl Context {
                 }
                 None => Ok(Expr::Nil),
             },
-            n => Ok(Expr::from(n)),
+            _ => Ok(Expr::from(ast)),
         }
     }
 
@@ -142,6 +139,6 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self::new((0, 0), (0, 1))
+        Self::new()
     }
 }

@@ -3,20 +3,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::prelude::{LexerError, Location};
+use crate::prelude::{LexerError, Span};
 
 /// Parse errors with a start and end location
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub start: Location,
-    pub end: Location,
+    pub span: Span,
 }
 
 impl Error {
     #[must_use]
-    pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
-        Self { kind, start, end }
+    pub const fn new(kind: ErrorKind, span: Span) -> Self {
+        Self { kind, span }
     }
 }
 
@@ -30,14 +29,13 @@ impl std::error::Error for Error {}
 
 impl From<LexerError> for Error {
     fn from(e: LexerError) -> Self {
-        let start = e.start;
-        let end = e.end;
-        Self::new(ErrorKind::Lexer(e), start, end)
+        let span = e.span.clone();
+        Self::new(ErrorKind::Lexer(e), span)
     }
 }
 
 /// Errors that can occur while parsing an AST from tokens
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
     Lexer(LexerError),
     UnexpectedCloseBracket,

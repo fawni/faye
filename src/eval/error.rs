@@ -4,21 +4,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::Expr;
-use crate::prelude::{Location, Symbol};
+use crate::prelude::{Span, Symbol};
 
 /// An evaluation error with a start and end location
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub start: Location,
-    pub end: Location,
+    pub span: Span,
 }
 
 impl Error {
     /// Create a new evaluation error
     #[must_use]
-    pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
-        Self { kind, start, end }
+    pub const fn new(kind: ErrorKind, span: Span) -> Self {
+        Self { kind, span }
     }
 }
 

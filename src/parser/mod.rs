@@ -12,238 +12,173 @@ mod error;
 mod node;
 
 /// A parser for the AST
-pub struct Parser {
-    input: String,
+pub struct Parser<'a> {
+    lexer: Lexer<'a>,
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// Create a new parser instace from a string
     #[must_use]
-    pub fn new(input: &str) -> Self {
+    pub fn new(input: &'a str) -> Self {
         Self {
-            input: input.to_owned(),
+            lexer: Lexer::new(input),
         }
     }
 
-    /// Parse the input string into an AST
-    pub fn parse(&self) -> Result<Vec<Node>, Error> {
-        let mut lexer = Lexer::new(&self.input);
-        let mut parents = Vec::new();
-        let mut cur_node = Node(
-            NodeKind::List(Vec::new()),
-            lexer.location(),
-            lexer.location(),
-        );
+    pub fn set_name(&mut self, name: String) {
+        self.lexer.set_name(name);
+    }
 
-        while let Some(token) = lexer.read()? {
-            let (start, end) = (token.1, token.2);
-            let child = match token.0 {
-                TokenKind::Comment(_) => continue,
+    /// Parse the input string into an AST
+    pub fn parse(&mut self) -> Result<Vec<Node>, Error> {
+        let mut parents = Vec::new();
+        let mut cur_node = Node::new(NodeKind::List(Vec::new()), self.lexer.span());
+
+        while let Some(token) = self.lexer.read()? {
+            match token.kind {
+                TokenKind::Comment(_) => { /* TODO: maybe add metadata to fns? */ }
                 TokenKind::OpenParen => {
-                    let child = Node(NodeKind::List(Vec::new()), start, end);
+                    let child = Node::new(NodeKind::List(Vec::new()), token.span);
                     parents.push(cur_node);
                     cur_node = child;
-                    continue;
-                }
-                TokenKind::CloseParen => {
-                    let mut parent = parents
-                        .pop()
-                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseBracket, start, end))?;
-                    cur_node.2 = end;
-                    if !matches!(cur_node.0, NodeKind::List(_)) {
-                        return Err(Error::new(ErrorKind::UnmatchedBracket, start, end));
-                    }
-                    parent.push(cur_node)?;
-                    cur_node = parent;
-                    continue;
                 }
                 TokenKind::OpenBracket => {
-                    let child = Node(NodeKind::Vector(Vec::new()), start, end);
+                    let child = Node::new(NodeKind::Vector(Vec::new()), token.span);
                     parents.push(cur_node);
                     cur_node = child;
-                    continue;
+                }
+                TokenKind::CloseParen => {
+                    let mut parent = parents.pop().ok_or_else(|| {
+                        Error::new(ErrorKind::UnexpectedCloseBracket, token.span.clone())
+                    })?;
+                    cur_node.span.extend(&token.span);
+                    if !matches!(cur_node.kind, NodeKind::List(_)) {
+                        return Err(Error::new(ErrorKind::UnmatchedBracket, token.span));
+                    }
+                    parent.push_node(cur_node)?;
+                    cur_node = parent;
                 }
                 TokenKind::CloseBracket => {
-                    let mut parent = parents
-                        .pop()
-                        .ok_or_else(|| Error::new(ErrorKind::UnexpectedCloseBracket, start, end))?;
-                    cur_node.2 = end;
-                    if !matches!(cur_node.0, NodeKind::Vector(_)) {
-                        return Err(Error::new(ErrorKind::UnmatchedBracket, start, end));
+                    let mut parent = parents.pop().ok_or_else(|| {
+                        Error::new(ErrorKind::UnexpectedCloseBracket, token.span.clone())
+                    })?;
+                    cur_node.span.extend(&token.span);
+                    if !matches!(cur_node.kind, NodeKind::Vector(_)) {
+                        return Err(Error::new(ErrorKind::UnmatchedBracket, token.span));
                     }
-                    parent.push(cur_node)?;
+                    parent.push_node(cur_node)?;
                     cur_node = parent;
-                    continue;
                 }
-                _ => Node::try_from(token)?,
-            };
-
-            cur_node.push(child)?;
+                _ => cur_node.push_node(Node::try_from(token)?)?,
+            }
         }
 
         if !parents.is_empty() {
-            return Err(Error::new(
-                ErrorKind::UnclosedBracket,
-                cur_node.1,
-                cur_node.2,
-            ));
+            return Err(Error::new(ErrorKind::UnclosedBracket, cur_node.span));
         }
 
-        match cur_node {
-            Node(NodeKind::List(body) | NodeKind::Vector(body), ..) => Ok(body),
-            _ => Err(Error::new(ErrorKind::Unreachable, cur_node.1, cur_node.2)),
+        match cur_node.kind {
+            NodeKind::List(body) => Ok(body),
+            _ => Err(Error::new(ErrorKind::Unreachable, cur_node.span)),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{LexerError, Symbol};
+    use crate::prelude::{LexerError, Span, Symbol};
 
     use super::*;
 
-    #[test]
-    fn parse_list() {
-        let parser = Parser::new("(+ 1 2)");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Ok(vec![Node(
+    macro_rules! test {
+        ($name:ident: $input:literal, $src:ident => $ast:expr) => {
+            #[test]
+            fn $name() {
+                let mut parser = Parser::new($input);
+                let $src = parser.lexer.source.clone();
+                assert_eq!(parser.parse(), $ast);
+            }
+        };
+    }
+
+    test!(parse_list: "(+ 1 2)", src => Ok(vec![Node::new(
+        NodeKind::List(vec![
+            Node::new(NodeKind::Symbol(Symbol::from("+")), Span::new(1..2, src.clone())),
+            Node::new(NodeKind::Number(1.), Span::new(3..4, src.clone())),
+            Node::new(NodeKind::Number(2.), Span::new(5..6, src.clone())),
+        ]),
+        Span::new(0..7, src)
+    )]));
+
+    test!(parse_nested_list: "(+ 2.5 64 (* 2 3))", src => Ok(vec![Node::new(
+        NodeKind::List(vec![
+            Node::new(NodeKind::Symbol(Symbol::from("+")), Span::new(1..2, src.clone())),
+            Node::new(NodeKind::Number(2.5), Span::new(3..6, src.clone())),
+            Node::new(NodeKind::Number(64.), Span::new(7..9, src.clone())),
+            Node::new(
                 NodeKind::List(vec![
-                    Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
-                    Node(NodeKind::Number(1.), (0, 3), (0, 4)),
-                    Node(NodeKind::Number(2.), (0, 5), (0, 6)),
+                    Node::new(NodeKind::Symbol(Symbol::from("*")), Span::new(11..12, src.clone())),
+                    Node::new(NodeKind::Number(2.), Span::new(13..14, src.clone())),
+                    Node::new(NodeKind::Number(3.), Span::new(15..16, src.clone())),
                 ]),
-                (0, 0),
-                (0, 7),
-            )])
-        );
-    }
+                Span::new(10..17, src.clone())
+            ),
+        ]),
+        Span::new(0..18, src)
+    )]));
 
-    #[test]
-    fn parse_nested_list() {
-        let parser = Parser::new("(+ 2.5 64 (* 2 3))");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Ok(vec![Node(
-                NodeKind::List(vec![
-                    Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
-                    Node(NodeKind::Number(2.5), (0, 3), (0, 6)),
-                    Node(NodeKind::Number(64.), (0, 7), (0, 9)),
-                    Node(
-                        NodeKind::List(vec![
-                            Node(NodeKind::Symbol(Symbol::from("*")), (0, 11), (0, 12)),
-                            Node(NodeKind::Number(2.), (0, 13), (0, 14)),
-                            Node(NodeKind::Number(3.), (0, 15), (0, 16)),
-                        ]),
-                        (0, 10),
-                        (0, 17)
-                    ),
-                ]),
-                (0, 0),
-                (0, 18)
-            )])
-        );
-    }
-
-    #[test]
-    fn parse_multiple_expressions() {
-        let parser = Parser::new("(/ 6 3 (+ 1 2)) (* 2 5)\n(- 10 5)");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Ok(vec![
-                Node(
+    test!(parse_multiple_expressions: "(/ 6 3 (+ 1 2)) (* 2 5)\n(- 10 5)", src => Ok(vec![
+        Node::new(
+            NodeKind::List(vec![
+                Node::new(NodeKind::Symbol(Symbol::from("/")), Span::new(1..2, src.clone())),
+                Node::new(NodeKind::Number(6.), Span::new(3..4, src.clone())),
+                Node::new(NodeKind::Number(3.), Span::new(5..6, src.clone())),
+                Node::new(
                     NodeKind::List(vec![
-                        Node(NodeKind::Symbol(Symbol::from("/")), (0, 1), (0, 2)),
-                        Node(NodeKind::Number(6.), (0, 3), (0, 4)),
-                        Node(NodeKind::Number(3.), (0, 5), (0, 6)),
-                        Node(
-                            NodeKind::List(vec![
-                                Node(NodeKind::Symbol(Symbol::from("+")), (0, 8), (0, 9)),
-                                Node(NodeKind::Number(1.), (0, 10), (0, 11)),
-                                Node(NodeKind::Number(2.), (0, 12), (0, 13)),
-                            ]),
-                            (0, 7),
-                            (0, 14),
-                        ),
+                        Node::new(NodeKind::Symbol(Symbol::from("+")), Span::new(8..9, src.clone())),
+                        Node::new(NodeKind::Number(1.), Span::new(10..11, src.clone())),
+                        Node::new(NodeKind::Number(2.), Span::new(12..13, src.clone())),
                     ]),
-                    (0, 0),
-                    (0, 15),
+                    Span::new(7..14, src.clone())
                 ),
-                Node(
-                    NodeKind::List(vec![
-                        Node(NodeKind::Symbol(Symbol::from("*")), (0, 17), (0, 18)),
-                        Node(NodeKind::Number(2.), (0, 19), (0, 20)),
-                        Node(NodeKind::Number(5.), (0, 21), (0, 22)),
-                    ]),
-                    (0, 16),
-                    (0, 16 + 7),
-                ),
-                Node(
-                    NodeKind::List(vec![
-                        Node(NodeKind::Symbol(Symbol::from("-")), (1, 1), (1, 2)),
-                        Node(NodeKind::Number(10.), (1, 3), (1, 5)),
-                        Node(NodeKind::Number(5.), (1, 6), (1, 7)),
-                    ]),
-                    (1, 0),
-                    (1, 8),
-                ),
-            ])
-        );
-    }
+            ]),
+            Span::new(0..15, src.clone())
+        ),
+        Node::new(
+            NodeKind::List(vec![
+                Node::new(NodeKind::Symbol(Symbol::from("*")), Span::new(17..18, src.clone())),
+                Node::new(NodeKind::Number(2.), Span::new(19..20, src.clone())),
+                Node::new(NodeKind::Number(5.), Span::new(21..22, src.clone())),
+            ]),
+            Span::new(16..23, src.clone())
+        ),
+        Node::new(
+            NodeKind::List(vec![
+                Node::new(NodeKind::Symbol(Symbol::from("-")), Span::new(25..26, src.clone())),
+                Node::new(NodeKind::Number(10.), Span::new(27..29, src.clone())),
+                Node::new(NodeKind::Number(5.), Span::new(30..31, src.clone())),
+            ]),
+            Span::new(24..32, src)
+        ),
+    ]));
 
-    #[test]
-    fn parse_float() {
-        let parser = Parser::new("(2.500000)");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Ok(vec![Node(
-                NodeKind::List(vec![Node(NodeKind::Number(2.5), (0, 1), (0, 9))]),
-                (0, 0),
-                (0, 10),
-            )])
-        );
-    }
+    test!(parse_float: "(2.500000)", src => Ok(vec![Node::new(
+        NodeKind::List(vec![Node::new(NodeKind::Number(2.5), Span::new(1..9, src.clone()))]),
+        Span::new(0..10, src)
+    )]));
 
-    #[test]
-    fn parse_empty() {
-        let parser = Parser::new("");
-        let res = parser.parse();
-        assert_eq!(res, Ok(Vec::new()));
-    }
+    test!(parse_empty: "", _src => Ok(vec![]));
 
-    #[test]
-    fn error_invalid_number() {
-        let parser = Parser::new("(+ 1.2.3)");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Err(Error::new(
-                ErrorKind::Lexer(LexerError::new(
-                    crate::lexer::ErrorKind::InvalidNumber("1.2.3".into()),
-                    (0, 3),
-                    (0, 8),
-                )),
-                (0, 3),
-                (0, 8),
-            ))
-        );
-    }
+    test!(error_invalid_number: "(+ 1.2.3)", src => Err(Error::new(
+        ErrorKind::Lexer(LexerError::new(
+            crate::lexer::ErrorKind::InvalidNumber("1.2.3".into()),
+            Span::new(3..8, src.clone())
+        )),
+        Span::new(3..8, src)
+    )));
 
-    #[test]
-    fn error_unexpected_close_paren() {
-        let parser = Parser::new(")");
-        let res = parser.parse();
-        assert_eq!(
-            res,
-            Err(Error::new(
-                ErrorKind::UnexpectedCloseBracket,
-                (0, 0),
-                (0, 1)
-            ))
-        );
-    }
+    test!(error_unexpected_close_paren: ")", src => Err(Error::new(
+        ErrorKind::UnexpectedCloseBracket,
+        Span::new(0..1, src)
+    )));
 }

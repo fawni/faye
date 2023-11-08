@@ -60,7 +60,7 @@ impl std::fmt::Display for Expr {
 
 impl From<&Node> for Expr {
     fn from(node: &Node) -> Self {
-        match &node.0 {
+        match &node.kind {
             NodeKind::Number(n) => Self::Number(*n),
             NodeKind::Bool(b) => Self::Bool(*b),
             NodeKind::String(s) => Self::String(s.clone()),

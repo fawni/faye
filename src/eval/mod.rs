@@ -21,72 +21,28 @@ mod userfn;
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{Node, NodeKind, Symbol};
-
     use super::*;
 
-    #[test]
-    fn add() {
-        // (* 2 3)
-        let ast = Node(
-            NodeKind::List(vec![
-                Node(NodeKind::Symbol(Symbol::from("*")), (0, 1), (0, 2)),
-                Node(NodeKind::Number(2.), (0, 3), (0, 4)),
-                Node(NodeKind::Number(3.), (0, 5), (0, 6)),
-            ]),
-            (0, 0),
-            (0, 7),
-        );
-        let res = Context::default().eval(&ast);
+    macro_rules! test {
+        ($name:ident: $input:literal, $res:expr) => {
+            #[test]
+            fn $name() -> Result<(), Box<dyn std::error::Error>> {
+                let ast = crate::parser::Parser::new($input).parse()?;
+                let res = Context::default().eval(&ast[0]);
 
-        assert_eq!(res, Ok(Expr::Number(6.)));
+                assert_eq!(res.map_err(|e| e.kind), $res);
+                Ok(())
+            }
+        };
     }
 
-    #[test]
-    fn error_invalid_function() {
-        // (1 + 2)
-        let ast = Node(
-            NodeKind::List(vec![
-                Node(NodeKind::Number(1.), (0, 1), (0, 2)),
-                Node(NodeKind::Symbol(Symbol::from("+")), (0, 3), (0, 4)),
-                Node(NodeKind::Number(2.), (0, 5), (0, 6)),
-            ]),
-            (0, 0),
-            (0, 7),
-        );
+    test!(mul: "(* 2 3)", Ok(Expr::Number(6.)));
 
-        let res = Context::default().eval(&ast);
-        assert_eq!(
-            res,
-            Err(Error::new(
-                ErrorKind::InvalidFunction(Expr::Number(1.)),
-                (0, 1),
-                (0, 2)
-            ))
-        );
-    }
+    test!(error_invalid_function: "(1 + 2)", Err(
+        ErrorKind::InvalidFunction(Expr::Number(1.))
+    ));
 
-    #[test]
-    fn error_add_string() {
-        // (+ "hi" 5)
-        let ast = Node(
-            NodeKind::List(vec![
-                Node(NodeKind::Symbol(Symbol::from("+")), (0, 1), (0, 2)),
-                Node(NodeKind::String("hi".into()), (0, 3), (0, 7)),
-                Node(NodeKind::Number(5.), (0, 8), (0, 9)),
-            ]),
-            (0, 0),
-            (0, 10),
-        );
-
-        let res = Context::default().eval(&ast);
-        assert_eq!(
-            res,
-            Err(Error::new(
-                ErrorKind::InvalidArgument(Expr::String("hi".into())),
-                (0, 1),
-                (0, 2),
-            ))
-        );
-    }
+    test!(error_add_string: "(+ \"hi\" 5)", Err(
+        ErrorKind::InvalidArgument(Expr::String("hi".into()))
+    ));
 }

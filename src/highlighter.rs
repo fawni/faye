@@ -1,4 +1,4 @@
-use crate::prelude::{Lexer, Token, TokenKind};
+use crate::prelude::{Lexer, TokenKind};
 
 /// A highlighter for faye code
 #[derive(Default, Clone, Copy)]
@@ -19,8 +19,6 @@ impl Highlighter {
     pub fn highlight(&self, snippet: &str) -> String {
         let mut colored = String::with_capacity(snippet.len());
 
-        let mut lex = Lexer::new(snippet);
-
         let mut paren_idx = 0;
         let paren_colors = [
             "\x1b[0;92m",
@@ -33,10 +31,9 @@ impl Highlighter {
 
         let mut is_fn = false;
         let mut start = 0;
-        while let Some(res) = lex.next() {
-            let end = snippet.len() - lex.get_unparsed().len();
+        for res in Lexer::new(snippet) {
             let color = match &res {
-                Ok(Token(kind, ..)) => match kind {
+                Ok(t) => match t.kind {
                     TokenKind::Comment(_) => "\x1b[3;90m",
                     TokenKind::OpenParen
                     | TokenKind::CloseParen
@@ -71,10 +68,11 @@ impl Highlighter {
                 Err(_) => "\x1b[31m",
             };
 
-            is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
+            is_fn = matches!(&res, Ok(t) if t.kind == TokenKind::OpenParen);
 
-            colored.push_str(color);
+            let end = res.map_or_else(|t| t.span, |e| e.span).bytes.start;
             colored.push_str(&snippet[start..end]);
+            colored.push_str(color);
             start = end;
         }
 

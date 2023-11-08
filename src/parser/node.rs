@@ -4,11 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{Error, ErrorKind};
-use crate::prelude::{Location, Symbol, Token, TokenKind};
+use crate::prelude::{Span, Symbol, Token, TokenKind};
 
 /// A node in the AST with a start and end location
 #[derive(Debug, PartialEq, Clone)]
-pub struct Node(pub NodeKind, pub Location, pub Location);
+pub struct Node {
+    pub kind: NodeKind,
+    pub span: Span,
+}
 
 /// The type of a node in the AST
 #[derive(Debug, PartialEq, Clone)]
@@ -25,14 +28,19 @@ pub enum NodeKind {
 }
 
 impl Node {
+    #[must_use]
+    pub const fn new(kind: NodeKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+
     /// Push a child node onto a list node
-    pub fn push(&mut self, child: Self) -> Result<(), Error> {
-        match self {
-            Self(NodeKind::List(c) | NodeKind::Vector(c), ..) => {
+    pub fn push_node(&mut self, child: Self) -> Result<(), Error> {
+        match &mut self.kind {
+            NodeKind::List(c) | NodeKind::Vector(c) => {
                 c.push(child);
                 Ok(())
             }
-            _ => Err(Error::new(ErrorKind::Unreachable, child.1, child.2)),
+            _ => Err(Error::new(ErrorKind::Unreachable, child.span)),
         }
     }
 }
@@ -42,24 +50,21 @@ impl TryFrom<Token> for Node {
 
     /// Perform a conversion from a token to a node
     fn try_from(token: Token) -> Result<Self, Self::Error> {
-        match token {
-            Token(TokenKind::Number(n), start, end) => Ok(Self(NodeKind::Number(n), start, end)),
-            Token(TokenKind::Bool(b), start, end) => Ok(Self(NodeKind::Bool(b), start, end)),
-            Token(TokenKind::String(s), start, end) => Ok(Self(NodeKind::String(s), start, end)),
-            Token(TokenKind::Char(c), start, end) => Ok(Self(NodeKind::Char(c), start, end)),
-            Token(TokenKind::Symbol(s), start, end) => Ok(Self(NodeKind::Symbol(s), start, end)),
-            Token(TokenKind::Keyword(s), start, end) => Ok(Self(NodeKind::Keyword(s), start, end)),
-            Token(TokenKind::Nil, start, end) => Ok(Self(NodeKind::Nil, start, end)),
-            Token(
-                // not using `_` to get errors for unhandled tokens
-                TokenKind::Comment(_)
-                | TokenKind::OpenParen
-                | TokenKind::CloseParen
-                | TokenKind::OpenBracket
-                | TokenKind::CloseBracket,
-                start,
-                end,
-            ) => Err(Error::new(ErrorKind::Unreachable, start, end)),
-        }
+        let kind = match token.kind {
+            TokenKind::Number(n) => NodeKind::Number(n),
+            TokenKind::Bool(b) => NodeKind::Bool(b),
+            TokenKind::Symbol(s) => NodeKind::Symbol(s),
+            TokenKind::String(s) => NodeKind::String(s),
+            TokenKind::Char(c) => NodeKind::Char(c),
+            TokenKind::Keyword(k) => NodeKind::Keyword(k),
+            TokenKind::Nil => NodeKind::Nil,
+            TokenKind::OpenParen
+            | TokenKind::CloseParen
+            | TokenKind::OpenBracket
+            | TokenKind::CloseBracket
+            | TokenKind::Comment(_) => return Err(Error::new(ErrorKind::Unreachable, token.span)),
+        };
+
+        Ok(Self::new(kind, token.span))
     }
 }

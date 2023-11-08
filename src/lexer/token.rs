@@ -3,11 +3,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{Location, Symbol};
+use crate::span::Span;
+
+use super::Symbol;
 
 /// A token with a start and end location
 #[derive(Debug, PartialEq, Clone)]
-pub struct Token(pub TokenKind, pub Location, pub Location);
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: Span,
+}
+
+impl Token {
+    #[must_use]
+    pub const fn new(kind: TokenKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+}
 
 /// The type of a token
 #[derive(Debug, PartialEq, Clone)]

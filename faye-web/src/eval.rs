@@ -1,28 +1,29 @@
 use faye::prelude::*;
 use maud::{html, Markup};
 
-macro_rules! err {
-    ($err:ident) => {
-        html! {
-            (" ".repeat($err.start.1 + 2)) span.faye-error { ("^".repeat($err.end.1 - $err.start.1)) } "\n"
-            span.faye-error { "error" } ": " ($err) "\n"
-        }
-    };
+fn display_error(span: &Span, err: &impl std::error::Error) -> Markup {
+    let loc = span.location();
+    let end_loc = span.end_location();
+
+    html! {
+        (" ".repeat(loc.column + 2)) span.faye-error { ("^".repeat(end_loc.column - loc.column)) } "\n"
+        span.faye-error { "error" } ": " (err) "\n"
+    }
 }
 
 pub fn eval(ctx: &mut Context, expr: &str) -> Markup {
-    let parser = Parser::new(expr);
+    let mut parser = Parser::new(expr);
 
     let ast = match parser.parse() {
         Ok(ast) => ast,
-        Err(err) => return err!(err),
+        Err(err) => return display_error(&err.span, &err),
     };
 
     html! {
         @for n in ast {
             @match ctx.eval(&n) {
                 Ok(expr) => (expr) "\n",
-                Err(err) => (err!(err)),
+                Err(err) => (display_error(&err.span, &err)),
             }
         }
     }

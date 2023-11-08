@@ -3,20 +3,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::Location;
+use crate::span::Span;
 
 /// Lexer errors with a start and end location
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub start: Location,
-    pub end: Location,
+    pub span: Span,
 }
 
 impl Error {
     #[must_use]
-    pub const fn new(kind: ErrorKind, start: Location, end: Location) -> Self {
-        Self { kind, start, end }
+    pub const fn new(kind: ErrorKind, span: Span) -> Self {
+        Self { kind, span }
     }
 }
 

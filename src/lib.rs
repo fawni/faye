@@ -8,3 +8,4 @@ pub mod highlighter;
 pub mod lexer;
 pub mod parser;
 pub mod prelude;
+pub mod span;

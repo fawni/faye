@@ -9,7 +9,7 @@ use clap::{
     builder::{styling::AnsiColor, Styles},
     Parser,
 };
-use faye::prelude::{Context, Expr, Highlighter, Lexer, Parser as FayeParser};
+use faye::prelude::{Context, Expr, Highlighter, Lexer, Parser as FayeParser, Span};
 
 use repl::Repl;
 
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if let Some(code) = args.ast {
-        let parser = FayeParser::new(&code);
+        let mut parser = FayeParser::new(&code);
         let ast = parser.parse()?;
         println!("{ast:?}");
 
@@ -109,37 +109,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-macro_rules! err {
-    ($src:tt@$path:expr => $err:ident, $hl:ident) => {
-        eprintln!(
-            "\x1b[1;36m   --> \x1b[0m{}:{}:{}\n\x1b[1;36m    |\n{:^4}|\x1b[0m {}\n\x1b[1;36m    |\x1b[0m{}\x1b[1;31m{} {}\x1b[0m",
-            $path,
-            $err.start.0 + 1,
-            $err.start.1 + 1,
-            $err.start.0 + 1,
-            $hl.highlight($src.split('\n').nth($err.start.0).unwrap()),
-            " ".repeat($err.start.1 + 1),
-            "^".repeat($err.end.1 - $err.start.1),
-            $err
-        )
-    };
+fn display_error(hl: Highlighter, span: &Span, err: &impl std::error::Error) {
+    let loc = span.location();
+    let end_loc = span.end_location();
+
+    let fmt = hl.highlight(span.source.get_line(loc.line));
+    let name = span.source.name().unwrap_or("<input>");
+    let line = loc.line + 1;
+    let col = loc.column + 1;
+
+    eprintln!(
+        "\x1b[1;36m   --> \x1b[0m{name}:{line}:{col}\n\
+             \x1b[1;36m    |\n\
+                  {line:^4}|\x1b[0m {fmt}\n\
+             \x1b[1;36m    |\x1b[0m {}\x1b[1;31m{} {err}\x1b[0m",
+        " ".repeat(loc.column),
+        "^".repeat(end_loc.column - loc.column),
+    );
 }
 
 fn eval(code: &str, path: Option<&str>, match_brackets: bool) {
-    let mut ctx = Context::default();
+    let mut ctx = Context::new();
     let hl = Highlighter::new(match_brackets);
 
-    let parser = FayeParser::new(code);
-    let path = path.unwrap_or("<input>");
+    let mut parser = FayeParser::new(code);
+    if let Some(p) = path {
+        parser.set_name(p.to_owned());
+    }
 
     let ast = match parser.parse() {
         Ok(ast) => ast,
-        Err(err) => return err!(code@path => err, hl),
+        Err(err) => return display_error(hl, &err.span, &err),
     };
 
     ast.iter().for_each(|n| match ctx.eval(n) {
         Ok(Expr::Nil) => {}
         Ok(res) => println!("{res}"),
-        Err(err) => err!(code@path => err, hl),
+        Err(err) => display_error(hl, &err.span, &err),
     });
 }

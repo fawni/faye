@@ -4,14 +4,11 @@ use maud::{html, Markup};
 pub fn highlight(snippet: &str) -> Markup {
     let mut classes = Vec::new();
 
-    let mut lex = Lexer::new(snippet);
-
     let mut is_fn = false;
     let mut start = 0;
-    while let Some(res) = lex.next() {
-        let end = snippet.len() - lex.get_unparsed().len();
+    for res in Lexer::new(snippet) {
         let class = match &res {
-            Ok(Token(kind, ..)) => match kind {
+            Ok(t) => match t.kind {
                 TokenKind::Comment(_) => "faye-comment",
                 TokenKind::OpenParen
                 | TokenKind::CloseParen
@@ -28,8 +25,9 @@ pub fn highlight(snippet: &str) -> Markup {
             Err(_) => "faye-error",
         };
 
-        is_fn = matches!(res, Ok(Token(TokenKind::OpenParen, ..)));
+        is_fn = matches!(&res, Ok(t) if t.kind == TokenKind::OpenParen);
 
+        let end = res.map_or_else(|t| t.span, |e| e.span).bytes.end;
         classes.push((&snippet[start..end], class));
         start = end;
     }

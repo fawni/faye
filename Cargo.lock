@@ -204,6 +204,12 @@ dependencies = [
 [[package]]
 name = "faye"
 version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b12c7bf8b9625a4e1e60bc82a88f12d900e2ece4da40e6f91cc66d6de7b778c"
+
+[[package]]
+name = "faye"
+version = "0.6.0"
 dependencies = [
  "clap",
  "faye-lsp",
@@ -212,19 +218,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "faye"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b12c7bf8b9625a4e1e60bc82a88f12d900e2ece4da40e6f91cc66d6de7b778c"
-
-[[package]]
 name = "faye-lsp"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8859e20d0d88c875b26b9fb13d9176a9c9f0db98e5e0063ec149a37d43ff47ed"
 dependencies = [
  "dashmap",
- "faye 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "faye 0.5.2",
  "tokio",
  "tower-lsp",
 ]
@@ -233,7 +233,7 @@ dependencies = [
 name = "faye-web"
 version = "0.1.0"
 dependencies = [
- "faye 0.5.2",
+ "faye 0.6.0",
  "maud",
  "wasm-bindgen",
  "web-sys",

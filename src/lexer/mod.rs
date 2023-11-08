@@ -3,11 +3,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::{Chars, FromStr};
+use std::{
+    str::{Chars, FromStr},
+    sync::Arc,
+};
 
 pub use error::{Error, ErrorKind};
 pub use symbol::Symbol;
 pub use token::{Token, TokenKind};
+
+use crate::span::{Source, Span};
 
 mod error;
 mod symbol;
@@ -17,26 +22,33 @@ mod token;
 #[derive(Debug)]
 pub struct Lexer<'a> {
     input: Chars<'a>,
-    line: usize,
-    col: usize,
+    byte: usize,
+    pub source: Arc<Source>,
 }
 
 impl Lexer<'_> {
     /// Create a new lexer instance from a string
     #[must_use]
     pub fn new(input: &str) -> Lexer {
+        let source = Arc::new(Source::new(None, input.to_owned()));
+
         Lexer {
             input: input.chars(),
-            line: 0,
-            col: 0,
+            byte: 0,
+            source,
         }
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        // TODO: goob
+        Arc::get_mut(&mut self.source).unwrap().set_name(name);
     }
 
     /// Get the current position of the lexer
     #[inline]
     #[must_use]
-    pub const fn location(&self) -> Location {
-        (self.line, self.col)
+    pub(crate) fn span(&self) -> Span {
+        Span::new(self.byte..self.byte, self.source.clone())
     }
 
     /// Get the current character
@@ -58,14 +70,9 @@ impl Lexer<'_> {
 
     /// Advance the lexer by one character
     fn advance(&mut self) -> Option<char> {
-        self.col += 1;
-        self.input.next()
-    }
-
-    /// Advance the lexer by one line
-    fn newline(&mut self) {
-        self.line += 1;
-        self.col = 0;
+        let c = self.input.next()?;
+        self.byte += c.len_utf8();
+        Some(c)
     }
 
     /// Read a word from the input until a separator is reached
@@ -85,75 +92,69 @@ impl Lexer<'_> {
 
     /// Parse a value from the input or return an error
     fn parse_or<T: FromStr>(&mut self, err: impl Fn(String) -> ErrorKind) -> Result<T, Error> {
-        let start = self.location();
+        let span = self.span();
         let word = self.read_word();
 
         word.parse()
-            .map_err(|_| Error::new(err(word), start, self.location()))
+            .map_err(|_| Error::new(err(word), span.join(&self.span())))
     }
 
     /// Read the next token from the input
     pub fn read(&mut self) -> Result<Option<Token>, Error> {
-        loop {
+        let c = loop {
             match self.current() {
-                Some('\n') => {
-                    self.advance();
-                    self.newline();
-                }
                 Some(c) if c.is_ascii_whitespace() || c == ',' => {
                     self.advance();
                 }
-                Some(_) => break,
+                Some(c) => break c,
                 None => return Ok(None),
             }
-        }
+        };
 
-        let start = self.location();
-        let kind = match self.current() {
-            Some('(') => {
+        let mut span = self.span();
+        let kind = match c {
+            '(' => {
                 self.advance();
                 TokenKind::OpenParen
             }
-            Some(')') => {
+            ')' => {
                 self.advance();
                 TokenKind::CloseParen
             }
-            Some('[') => {
+            '[' => {
                 self.advance();
                 TokenKind::OpenBracket
             }
-            Some(']') => {
+            ']' => {
                 self.advance();
                 TokenKind::CloseBracket
             }
-            Some('0'..='9') => TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?),
-            Some('+' | '-') if matches!(self.peek(1), Some('0'..='9')) => {
+            '0'..='9' => TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?),
+            '+' | '-' if matches!(self.peek(1), Some('0'..='9')) => {
                 TokenKind::Number(self.parse_or(ErrorKind::InvalidNumber)?)
             }
-            Some(';') => {
+            ';' => {
                 self.advance();
                 let mut comment = String::new();
                 while let Some(c) = self.advance() {
                     if c == '\n' {
-                        self.newline();
                         break;
                     }
                     comment.push(c);
                 }
                 TokenKind::Comment(comment)
             }
-            Some(':') => {
+            ':' => {
                 self.advance();
-                let word = self.read_word();
-                TokenKind::Keyword(Symbol(word))
+                TokenKind::Keyword(Symbol(self.read_word()))
             }
-            Some('"') => {
+            '"' => {
                 self.advance();
-                let quote_end = self.location();
+                let quote_span = span.clone().join(&self.span());
                 let mut string = String::new();
 
                 loop {
-                    let ch_start = self.location();
+                    let ch_span = self.span();
                     string.push(match self.advance() {
                         Some('"') => break,
                         Some('\\') => match self.advance() {
@@ -163,36 +164,27 @@ impl Lexer<'_> {
                             Some(c) => {
                                 return Err(Error::new(
                                     ErrorKind::InvalidEscape(c),
-                                    ch_start,
-                                    self.location(),
+                                    ch_span.join(&self.span()),
                                 ))
                             }
-                            None => {
-                                return Err(Error::new(ErrorKind::UnclosedString, start, quote_end))
-                            }
+                            None => return Err(Error::new(ErrorKind::UnclosedString, quote_span)),
                         },
-                        Some('\n') => {
-                            self.newline();
-                            '\n'
-                        }
                         Some(c) => c,
-                        None => {
-                            return Err(Error::new(ErrorKind::UnclosedString, start, quote_end))
-                        }
+                        None => return Err(Error::new(ErrorKind::UnclosedString, quote_span)),
                     });
                 }
 
                 if self.current().is_some_and(|c| !c.is_separator()) {
-                    while self.current().is_some_and(|c| !c.is_separator()) {
-                        self.advance();
-                    }
-
-                    return Err(Error::new(ErrorKind::InvalidString, start, self.location()));
+                    self.read_word();
+                    return Err(Error::new(
+                        ErrorKind::InvalidString,
+                        span.join(&self.span()),
+                    ));
                 }
 
                 TokenKind::String(string)
             }
-            Some('\'') => {
+            '\'' => {
                 self.advance();
                 let char = match self.advance() {
                     Some('\\') => match self.advance() {
@@ -202,30 +194,28 @@ impl Lexer<'_> {
                         Some(c) => {
                             return Err(Error::new(
                                 ErrorKind::InvalidEscape(c),
-                                start,
-                                self.location(),
+                                span.join(&self.span()),
                             ))
                         }
                         None => {
                             return Err(Error::new(
                                 ErrorKind::UnclosedChar,
-                                start,
-                                self.location(),
+                                span.join(&self.span()),
                             ));
                         }
                     },
                     Some(c) => c,
-                    _ => return Err(Error::new(ErrorKind::InvalidChar, start, self.location())),
+                    _ => return Err(Error::new(ErrorKind::InvalidChar, span.join(&self.span()))),
                 };
 
                 if self.advance() != Some('\'') {
                     self.read_word();
-                    return Err(Error::new(ErrorKind::InvalidChar, start, self.location()));
+                    return Err(Error::new(ErrorKind::InvalidChar, span.join(&self.span())));
                 }
 
                 TokenKind::Char(char)
             }
-            Some(_) => {
+            _ => {
                 let word = self.read_word();
                 match word.as_str() {
                     "true" => TokenKind::Bool(true),
@@ -234,10 +224,11 @@ impl Lexer<'_> {
                     _ => TokenKind::Symbol(Symbol::from(word)),
                 }
             }
-            None => return Ok(None),
         };
 
-        Ok(Some(Token(kind, start, self.location())))
+        span.extend(&self.span());
+
+        Ok(Some(Token::new(kind, span)))
     }
 }
 
@@ -261,212 +252,75 @@ impl Separator for char {
     }
 }
 
-/// A type alias for a location in the input (line, column)
-pub type Location = (usize, usize);
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn lex() {
-        let mut lexer = Lexer::new("(+ 14 25.5 333 (* 2 5))");
+    macro_rules! test {
+        ($name:ident: $input:literal, $tokens:expr) => {
+            #[test]
+            fn $name() {
+                let mut lexer = Lexer::new($input);
 
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::OpenParen, (0, 0), (0, 1))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(
-                TokenKind::Symbol(Symbol::from("+")),
-                (0, 1),
-                (0, 2)
-            )))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(14.), (0, 3), (0, 5))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(25.5), (0, 6), (0, 10))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(333.), (0, 11), (0, 14))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::OpenParen, (0, 15), (0, 16))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(
-                TokenKind::Symbol(Symbol::from("*")),
-                (0, 16),
-                (0, 17)
-            )))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.), (0, 18), (0, 19))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(5.), (0, 20), (0, 21))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::CloseParen, (0, 21), (0, 22))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::CloseParen, (0, 22), (0, 23))))
-        );
-        assert_eq!(lexer.next(), None);
+                for token in $tokens {
+                    let x = lexer.next().map(|r| match r {
+                        Ok(t) => Ok(t.kind),
+                        Err(e) => Err(e.kind),
+                    });
+                    assert_eq!(x, Some(token));
+                }
+                assert_eq!(lexer.next(), None);
+            }
+        };
     }
 
-    #[test]
-    fn newline() {
-        let mut lexer = Lexer::new("(+ 14 25.5 333\n(* 2 5 5.x))");
+    test!(lex: "(+ 14 25.5 333 (* 2 5))", [
+        Ok(TokenKind::OpenParen),
+        Ok(TokenKind::Symbol(Symbol::from("+"))),
+        Ok(TokenKind::Number(14.)),
+        Ok(TokenKind::Number(25.5)),
+        Ok(TokenKind::Number(333.)),
+        Ok(TokenKind::OpenParen),
+        Ok(TokenKind::Symbol(Symbol::from("*"))),
+        Ok(TokenKind::Number(2.)),
+        Ok(TokenKind::Number(5.)),
+        Ok(TokenKind::CloseParen),
+        Ok(TokenKind::CloseParen),
+    ]);
 
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::OpenParen, (0, 0), (0, 1))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(
-                TokenKind::Symbol(Symbol::from("+")),
-                (0, 1),
-                (0, 2)
-            )))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(14.), (0, 3), (0, 5))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(25.5), (0, 6), (0, 10))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(333.), (0, 11), (0, 14))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::OpenParen, (1, 0), (1, 1))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(
-                TokenKind::Symbol(Symbol::from("*")),
-                (1, 1),
-                (1, 2)
-            )))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.), (1, 3), (1, 4))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(5.), (1, 5), (1, 6))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Err(Error::new(
-                ErrorKind::InvalidNumber("5.x".into()),
-                (1, 7),
-                (1, 10),
-            )))
-        );
-    }
+    test!(newline: "(+ 14 25.5 333\n(* 2 5 5.x))", [
+        Ok(TokenKind::OpenParen),
+        Ok(TokenKind::Symbol(Symbol::from("+"))),
+        Ok(TokenKind::Number(14.)),
+        Ok(TokenKind::Number(25.5)),
+        Ok(TokenKind::Number(333.)),
+        Ok(TokenKind::OpenParen),
+        Ok(TokenKind::Symbol(Symbol::from("*"))),
+        Ok(TokenKind::Number(2.)),
+        Ok(TokenKind::Number(5.)),
+        Err(ErrorKind::InvalidNumber("5.x".into())),
+        Ok(TokenKind::CloseParen),
+        Ok(TokenKind::CloseParen),
+    ]);
 
-    #[test]
-    fn negative_minus() {
-        let mut lexer = Lexer::new("(- 1 -2 3)");
+    test!(negative_minus: "(- 1 -2 3)", [
+        Ok(TokenKind::OpenParen),
+        Ok(TokenKind::Symbol(Symbol::from("-"))),
+        Ok(TokenKind::Number(1.)),
+        Ok(TokenKind::Number(-2.)),
+        Ok(TokenKind::Number(3.)),
+        Ok(TokenKind::CloseParen),
+    ]);
 
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::OpenParen, (0, 0), (0, 1))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(
-                TokenKind::Symbol(Symbol::from("-")),
-                (0, 1),
-                (0, 2)
-            )))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(1.), (0, 3), (0, 4))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(-2.), (0, 5), (0, 7))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(3.), (0, 8), (0, 9))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::CloseParen, (0, 9), (0, 10))))
-        );
-        assert_eq!(lexer.next(), None);
-    }
+    test!(error_parse_numbers: "2 55 3.144 0.0001 1.1.1", [
+        Ok(TokenKind::Number(2.)),
+        Ok(TokenKind::Number(55.)),
+        Ok(TokenKind::Number(3.144)),
+        Ok(TokenKind::Number(0.0001)),
+        Err(ErrorKind::InvalidNumber("1.1.1".into())),
+    ]);
 
-    #[test]
-    fn error_parse_numbers() {
-        let mut lexer = Lexer::new("2 55 3.144 0.0001 1.1.1");
+    test!(error_unclosed_string: "\"hiii", [Err(ErrorKind::UnclosedString)]);
 
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(2.), (0, 0), (0, 1))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(55.), (0, 2), (0, 4))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(3.144), (0, 5), (0, 10))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Ok(Token(TokenKind::Number(0.0001), (0, 11), (0, 17))))
-        );
-        assert_eq!(
-            lexer.next(),
-            Some(Err(Error::new(
-                ErrorKind::InvalidNumber("1.1.1".into()),
-                (0, 18),
-                (0, 18 + 5),
-            )))
-        );
-    }
-
-    #[test]
-    fn error_unclosed_string() {
-        let mut lexer = Lexer::new("\"hiii");
-
-        assert_eq!(
-            lexer.next(),
-            Some(Err(Error::new(ErrorKind::UnclosedString, (0, 0), (0, 1),)))
-        );
-    }
-
-    #[test]
-    fn error_invalid_string() {
-        let mut lexer = Lexer::new("\"hiii\"222");
-
-        assert_eq!(
-            lexer.next(),
-            Some(Err(Error::new(ErrorKind::InvalidString, (0, 0), (0, 9))))
-        );
-    }
+    test!(error_invalid_string: "\"hiii\"222", [Err(ErrorKind::InvalidString)]);
 }

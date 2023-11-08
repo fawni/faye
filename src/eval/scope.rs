@@ -19,7 +19,7 @@ pub struct Scope(pub(crate) HashMap<Symbol, Expr>);
 
 impl Scope {
     /// Create a new scope with builtin functions
-    pub(crate) fn new() -> Self {
+    pub(crate) fn builtins() -> Self {
         let mut scope = Self::default();
 
         scope.register("+", |ctx, args| {
@@ -142,8 +142,8 @@ impl Scope {
             let mut locals = ctx.locals.clone();
 
             for bind in bindings {
-                match bind {
-                    Node(NodeKind::List(b), ..) => {
+                match &bind.kind {
+                    NodeKind::List(b) => {
                         let [var, value] = ctx.get_n(b)?;
                         let var = ctx.downcast::<Symbol>(&Expr::from(var))?;
                         let value = ctx.eval(value)?;
