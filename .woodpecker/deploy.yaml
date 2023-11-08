@@ -1,6 +1,6 @@
 when:
     branch: master
-    event: [push, deployment]
+    event: [push, manual]
     path:
         include:
             [

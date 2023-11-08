@@ -11,7 +11,7 @@ edition = "2021"
 [package]
 name = "faye"
 description = "a pretty lil lisp"
-version = "0.5.1"
+version = "0.5.2"
 readme = "README.md"
 authors.workspace = true
 repository.workspace = true
