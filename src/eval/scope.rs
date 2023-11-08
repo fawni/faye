@@ -6,7 +6,10 @@
 use std::{collections::HashMap, io::IsTerminal};
 
 use super::{
-    builtin::BuiltinFn, closure::Closure, userfn::UserFn, Context, Error, ErrorKind, Expr,
+    builtin::{BuiltinFn, Callback},
+    closure::Closure,
+    userfn::UserFn,
+    Context, Error, ErrorKind, Expr,
 };
 use crate::prelude::{Node, NodeKind, Symbol};
 
@@ -19,7 +22,7 @@ impl Scope {
     pub(crate) fn new() -> Self {
         let mut scope = Self::default();
 
-        scope.register("+", &|ctx, args| {
+        scope.register("+", |ctx, args| {
             Ok(Expr::Number(
                 ctx.eval_args(args)
                     .and_then(|v| ctx.downcast_all::<f64>(&v))?
@@ -27,7 +30,7 @@ impl Scope {
                     .sum(),
             ))
         });
-        scope.register("*", &|ctx, args| {
+        scope.register("*", |ctx, args| {
             Ok(Expr::Number(
                 ctx.eval_args(args)
                     .and_then(|v| ctx.downcast_all::<f64>(&v))?
@@ -35,7 +38,7 @@ impl Scope {
                     .product(),
             ))
         });
-        scope.register("-", &|ctx, args| {
+        scope.register("-", |ctx, args| {
             Ok(Expr::Number(
                 ctx.eval_args(args)
                     .and_then(|v| ctx.downcast_all::<f64>(&v))?
@@ -44,7 +47,7 @@ impl Scope {
                     .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?,
             ))
         });
-        scope.register("/", &|ctx, args| {
+        scope.register("/", |ctx, args| {
             Ok(Expr::Number(
                 ctx.eval_args(args)
                     .and_then(|v| ctx.downcast_all::<f64>(&v))?
@@ -53,28 +56,28 @@ impl Scope {
                     .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?,
             ))
         });
-        scope.register("=", &|ctx, args| {
+        scope.register("=", |ctx, args| {
             let args = ctx.eval_args(args)?;
             Ok(Expr::Bool(args.iter().all(|n| n.eq(&args[0]))))
         });
-        scope.register("<", &|ctx, args| ctx.compare::<f64>(args, |a, b| a < b));
-        scope.register(">", &|ctx, args| ctx.compare::<f64>(args, |a, b| a > b));
-        scope.register("<=", &|ctx, args| ctx.compare::<f64>(args, |a, b| a <= b));
-        scope.register(">=", &|ctx, args| ctx.compare::<f64>(args, |a, b| a >= b));
-        scope.register("str", &|ctx, args| {
+        scope.register("<", |ctx, args| ctx.compare::<f64>(args, |a, b| a < b));
+        scope.register(">", |ctx, args| ctx.compare::<f64>(args, |a, b| a > b));
+        scope.register("<=", |ctx, args| ctx.compare::<f64>(args, |a, b| a <= b));
+        scope.register(">=", |ctx, args| ctx.compare::<f64>(args, |a, b| a >= b));
+        scope.register("str", |ctx, args| {
             Ok(Expr::String(
                 ctx.eval_args(args)
                     .and_then(|v| ctx.downcast_all::<String>(&v))?
                     .join(""),
             ))
         });
-        scope.register("chars", &|ctx, args| {
+        scope.register("chars", |ctx, args| {
             let [node] = ctx.get_n(args)?;
             let string = ctx.downcast::<String>(&Expr::from(node))?;
 
             Ok(Expr::Vector(string.chars().map(Expr::Char).collect()))
         });
-        scope.register("join", &|ctx, args| {
+        scope.register("join", |ctx, args| {
             let [sep, coll] = ctx.get_n(args)?;
             let sep = ctx.eval(sep).and_then(|expr| match expr {
                 Expr::Char(c) => Ok(c.to_string()),
@@ -89,7 +92,7 @@ impl Scope {
 
             Ok(Expr::String(vec.join(&sep)))
         });
-        scope.register("println", &|ctx, args| {
+        scope.register("println", |ctx, args| {
             let string = ctx
                 .eval_args(args)
                 .and_then(|v| ctx.downcast_all::<String>(&v))?
@@ -101,15 +104,13 @@ impl Scope {
                 Ok(Expr::Display(string))
             }
         });
-        scope.register("quote", &|ctx, args| {
+        scope.register("quote", |ctx, args| {
             let [node] = ctx.get_n(args)?;
             Ok(Expr::from(node))
         });
-        scope.register("list", &|ctx, args| Ok(Expr::List(ctx.eval_args(args)?)));
-        scope.register("vector", &|ctx, args| {
-            Ok(Expr::Vector(ctx.eval_args(args)?))
-        });
-        scope.register("vec", &|ctx, args| {
+        scope.register("list", |ctx, args| Ok(Expr::List(ctx.eval_args(args)?)));
+        scope.register("vector", |ctx, args| Ok(Expr::Vector(ctx.eval_args(args)?)));
+        scope.register("vec", |ctx, args| {
             let [node] = ctx.get_n(args)?;
             let expr = ctx.eval(node)?;
             let vec = match expr {
@@ -120,9 +121,9 @@ impl Scope {
 
             Ok(Expr::Vector(vec))
         });
-        scope.register("lambda", &lambda);
-        scope.register("λ", &lambda);
-        scope.register("fn", &|ctx, args| {
+        scope.register("lambda", lambda);
+        scope.register("λ", lambda);
+        scope.register("fn", |ctx, args| {
             let [name, params, body] = ctx.get_n(args)?;
             let name = ctx.downcast::<Symbol>(&Expr::from(name))?;
             let params = ctx.downcast::<Vec<Symbol>>(&Expr::from(params))?;
@@ -133,7 +134,7 @@ impl Scope {
 
             Ok(Expr::Nil)
         });
-        scope.register("let", &|ctx, args| {
+        scope.register("let", |ctx, args| {
             let (body, bindings) = args
                 .split_last()
                 .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?;
@@ -154,7 +155,7 @@ impl Scope {
 
             ctx.eval_scoped(body, locals)
         });
-        scope.register("const", &|ctx, args| {
+        scope.register("const", |ctx, args| {
             let [name, value] = ctx.get_n(args)?;
             let name = ctx.downcast::<Symbol>(&Expr::from(name))?;
             let value = ctx.eval(value)?;
@@ -163,7 +164,7 @@ impl Scope {
 
             Ok(Expr::Nil)
         });
-        scope.register("if", &|ctx, args| match ctx.get_n(args) {
+        scope.register("if", |ctx, args| match ctx.get_n(args) {
             Ok([cond, then, or_else]) => {
                 if ctx.eval(cond).and_then(|v| ctx.downcast(&v))? {
                     ctx.eval(then)
@@ -180,7 +181,7 @@ impl Scope {
                 }
             }
         });
-        scope.register("and", &|ctx, args| {
+        scope.register("and", |ctx, args| {
             for n in args {
                 if !ctx.eval(n).and_then(|v| ctx.downcast(&v))? {
                     return Ok(Expr::Bool(false));
@@ -188,7 +189,7 @@ impl Scope {
             }
             Ok(Expr::Bool(true))
         });
-        scope.register("or", &|ctx, args| {
+        scope.register("or", |ctx, args| {
             for n in args {
                 if ctx.eval(n).and_then(|v| ctx.downcast(&v))? {
                     return Ok(Expr::Bool(true));
@@ -196,7 +197,7 @@ impl Scope {
             }
             Ok(Expr::Bool(false))
         });
-        scope.register("not", &|ctx, args| {
+        scope.register("not", |ctx, args| {
             let [node] = ctx.get_n(args)?;
             Ok(Expr::Bool(
                 !ctx.eval(node)
@@ -209,11 +210,7 @@ impl Scope {
     }
 
     /// Register a builtin function
-    fn register<S: Into<String> + Clone>(
-        &mut self,
-        name: S,
-        callback: &'static impl Fn(&mut Context, &[Node]) -> Result<Expr, Error>,
-    ) {
+    fn register<S: Into<String> + Clone>(&mut self, name: S, callback: Callback) {
         self.insert(
             Symbol::from(name.clone()),
             Expr::BuiltinFn(BuiltinFn::new(name, callback)),
