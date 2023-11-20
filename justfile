@@ -30,3 +30,6 @@ push: (test)
     git push gh
 
 sync: (pull) (push)
+
+changelog:
+    git cliff -o CHANGELOG.md
