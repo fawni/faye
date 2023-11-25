@@ -25,11 +25,11 @@ pull:
     git pull
     git pull gh master
 
-push: (test)
+push: test && changelog
     git push
     git push gh
 
-sync: (pull) (push)
+sync: pull push
 
 changelog:
     git cliff -o CHANGELOG.md

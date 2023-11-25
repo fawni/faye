@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(code) = args.ast {
         let mut parser = FayeParser::new(&code);
         let ast = parser.parse()?;
-        println!("{ast:?}");
+        println!("{ast:#?}");
 
         return Ok(());
     }

@@ -3,12 +3,10 @@ when:
     event: [push, manual]
     path:
         include:
-            [
-                "faye-web/src/*.rs",
-                "faye-web/assets/**/*",
-                "faye-web/index.html",
-                "faye-web/Cargo.toml",
-            ]
+            - "faye-web/src/*.rs"
+            - "faye-web/assets/**/*"
+            - "faye-web/index.html"
+            - "faye-web/Cargo.toml"
 
 steps:
     build:
