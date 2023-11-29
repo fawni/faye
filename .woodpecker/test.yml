@@ -1,13 +1,28 @@
 when:
-    - event: [pull_request, manual]
-    - event: push
-      branch: master
+  - event: [pull_request, manual]
+  - event: push
+    branch: master
 
 steps:
-    test:
-        image: rust
-        environment: [CARGO_TERM_COLOR=always]
-        commands:
-            - rustup component add clippy
-            - cargo clippy --verbose --all
-            - cargo test --verbose --all
+  test:
+    image: rust
+    environment:
+      - CARGO_TERM_COLOR=always
+      - LLVM_PROFILE_FILE=target/coverage/%p-%m.profraw
+      - RUSTFLAGS=-Cinstrument-coverage
+    commands:
+      - rustup component add clippy
+      - cargo clippy --verbose
+      - cargo build
+      - cargo test --verbose
+      - rustup component add llvm-tools-preview
+      - curl -sSL https://github.com/mozilla/grcov/releases/download/v0.8.19/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar xjf -
+      - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "*cargo*" -o coverage.txt
+
+  codecov:
+    image: woodpeckerci/plugin-codecov
+    settings:
+      files:
+        - coverage.txt
+      token:
+        from_secret: CODECOV_TOKEN

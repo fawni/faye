@@ -6,6 +6,14 @@
 
 - 🐛 fix: downgrade wasm-bindgen to supported trunk ver
 
+### Miscellaneous
+
+- 🔨 chore: add changelog
+
+### Styling
+
+- 🎨 style(cli): pretty print ast
+
 ## [0.6.0] - 2023-11-08
 
 ### Refactor
