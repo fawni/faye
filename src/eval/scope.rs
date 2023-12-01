@@ -22,6 +22,11 @@ impl Scope {
     pub(crate) fn builtins() -> Self {
         let mut scope = Self::default();
 
+        scope.insert(
+            Symbol::from("@cmd-args"),
+            Expr::Vector(std::env::args().map(Expr::String).collect::<Vec<_>>()),
+        );
+
         scope.register("+", |ctx, args| {
             Ok(Expr::Number(
                 ctx.eval_args(args)
@@ -112,21 +117,46 @@ impl Scope {
         scope.register("vector", |ctx, args| Ok(Expr::Vector(ctx.eval_args(args)?)));
         scope.register("vec", |ctx, args| {
             let [node] = ctx.get_n(args)?;
-            let expr = ctx.eval(node)?;
-            let vec = match expr {
+            let vec = match ctx.eval(node)? {
                 Expr::List(v) | Expr::Vector(v) => v,
-                Expr::Nil => vec![],
-                _ => return Err(ctx.error(ErrorKind::InvalidArgument(expr))),
+                Expr::Nil => Vec::new(),
+                Expr::String(s) => s.chars().map(Expr::Char).collect(),
+                e => return Err(ctx.error(ErrorKind::InvalidArgument(e))),
             };
 
             Ok(Expr::Vector(vec))
+        });
+        scope.register("nth", |ctx, args| {
+            let (coll, nth, default) = match ctx.get_n(args) {
+                Ok([coll, nth, default]) => (ctx.eval(coll)?, ctx.eval(nth)?, ctx.eval(default)?),
+                Err(_) => {
+                    let [coll, nth] = ctx.get_n(args)?;
+                    (ctx.eval(coll)?, ctx.eval(nth)?, Expr::Nil)
+                }
+            };
+
+            let coll = match coll {
+                Expr::List(v) | Expr::Vector(v) => v,
+                Expr::Nil => Vec::new(),
+                Expr::String(s) => s.chars().map(Expr::Char).collect(),
+                _ => return Err(ctx.error(ErrorKind::InvalidArgument(coll))),
+            };
+            let nth = match ctx.downcast::<f64>(&nth)? {
+                n if n < 0. => coll.len() - n as usize,
+                n => n as usize,
+            };
+
+            Ok(coll.get(nth).unwrap_or(&default).clone())
         });
         scope.register("lambda", lambda);
         scope.register("λ", lambda);
         scope.register("fn", |ctx, args| {
             let [name, params, body] = ctx.get_n(args)?;
             let name = ctx.downcast::<Symbol>(&Expr::from(name))?;
-            let params = ctx.downcast::<Vec<Symbol>>(&Expr::from(params))?;
+            let params = match Expr::from(params) {
+                p @ Expr::Vector(_) => ctx.downcast::<Vec<Symbol>>(&p)?,
+                p => return Err(ctx.error(ErrorKind::InvalidArgument(p))),
+            };
             let body = body.clone();
 
             ctx.globals
@@ -204,6 +234,19 @@ impl Scope {
                     .and_then(|v| ctx.downcast(&v))
                     .unwrap_or(false),
             ))
+        });
+        scope.register("parse-num", |ctx, args| {
+            let [v] = ctx.get_n(args)?;
+            let expr = ctx.eval(v)?;
+            let num = match &expr {
+                Expr::String(s) => s.parse::<f64>().ok(),
+                Expr::Char(c) => c.to_digit(10).map(f64::from),
+                _ => None,
+            };
+
+            Ok(Expr::Number(num.ok_or_else(|| {
+                ctx.error(ErrorKind::InvalidArgument(expr))
+            })?))
         });
 
         scope

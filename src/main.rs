@@ -36,6 +36,10 @@ struct FayeArgs {
     #[arg()]
     file: Option<String>,
 
+    /// Arguments supplied to the faye file
+    #[arg()]
+    args: Option<Vec<String>>,
+
     /// Evaluate an expression from input
     #[arg(value_name = "EXPRESSION", short, long)]
     eval: Option<String>,
