@@ -23,7 +23,7 @@ fn main() {
             header {
                 span.faye { "faye" } " playground ♡ "
                 a href="https://codeberg.org/fawn/faye" { "faye" } ", "
-                a href="https://codeberg.org/fawn/faye/src/branch/master/web" { "website" }
+                a href="https://codeberg.org/fawn/faye/src/branch/master/faye-web" { "website" }
                 br;
                 "press " span.key { "ctrl + c" } " to clear input"
             }

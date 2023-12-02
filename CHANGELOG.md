@@ -14,6 +14,11 @@
 
 - 🎨 style(cli): pretty print ast
 
+### Testing
+
+- ✅ test: upload test coverage to codecov
+- ✅ test: nvm actually codecov is bloat anyway
+
 ## [0.6.0] - 2023-11-08
 
 ### Refactor

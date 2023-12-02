@@ -4,7 +4,7 @@ _default:
     @just --list
 
 test:
-    cargo test --all-features
+    cargo test
 
 lint:
     cargo clippy -- -W clippy::pedantic -W clippy::nursery
