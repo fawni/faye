@@ -25,7 +25,7 @@ pull:
     git pull
     git pull gh master
 
-push: test && changelog
+push: test
     git push
     git push gh
 

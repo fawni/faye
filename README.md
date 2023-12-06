@@ -2,7 +2,7 @@
 
 # faye
 
-**[Website](https://faye.codeberg.page) • [Docs](https://faye.codeberg.page/docs)**
+**[Website](https://faye.fawn.moe) • [Docs](https://faye.codeberg.page/docs) • [Changelog](CHANGELOG.md)** 
 
 ![logo](.meta/logo.png)
 

@@ -2,9 +2,14 @@
 
 ## [unreleased]
 
+### Features
+
+- ✨ feature: special vars (codeberg #10)
+
 ### Fixes
 
 - 🐛 fix: downgrade wasm-bindgen to supported trunk ver
+- 🐛 fix(web): update website source code url
 
 ### Miscellaneous
 
