@@ -2,11 +2,11 @@
 
 # faye
 
-**[Website](https://faye.fawn.moe) • [Docs](https://faye.codeberg.page/docs) • [Changelog](CHANGELOG.md)** 
+**[Website](https://faye.fawn.moe) • [Documentation](https://faye.codeberg.page/docs) • [Changelog](CHANGELOG.md)** 
 
 ![logo](.meta/logo.png)
 
-faye is the name of coquettish tiny grey cat, the middle name of a pretty ombre girl in Missouri, and this lil lisp 🦋
+faye is the name of coquettish tiny grey cat, the middle name of a pretty ombre girl in missouri, and this lil lisp 🦋
 
 [![crates.io](https://img.shields.io/crates/v/faye.svg)](https://crates.io/crates/faye)
 [![status-badge](https://ci.codeberg.org/api/badges/12559/status.svg)](https://ci.codeberg.org/repos/12559)

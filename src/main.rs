@@ -36,7 +36,7 @@ struct FayeArgs {
     #[arg()]
     file: Option<String>,
 
-    /// Arguments supplied to the faye file
+    /// Arguments supplied to the faye program
     #[arg()]
     args: Option<Vec<String>>,
 
@@ -48,11 +48,11 @@ struct FayeArgs {
     #[arg(value_name = "EXPRESSION", short, long)]
     lex: Option<String>,
 
-    /// Parse an expression into an AST
+    /// Parse an expression into an ast
     #[arg(value_name = "EXPRESSION", short, long)]
     ast: Option<String>,
 
-    /// Highlight matching brackets in REPL
+    /// Highlight matching brackets in the repl
     #[arg(short, long)]
     matching_brackets: bool,
 }
