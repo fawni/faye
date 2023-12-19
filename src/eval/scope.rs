@@ -241,6 +241,7 @@ impl Scope {
             let num = match &expr {
                 Expr::String(s) => s.parse::<f64>().ok(),
                 Expr::Char(c) => c.to_digit(10).map(f64::from),
+                Expr::Number(n) => Some(*n),
                 _ => None,
             };
 
