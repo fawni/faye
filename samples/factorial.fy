@@ -8,4 +8,4 @@
     1
     (* n (factorial (- n 1)))))
 
-(println (factorial (parse-num (nth @cmd-args -1 5))))
+(println (factorial 5))
