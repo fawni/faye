@@ -54,10 +54,10 @@ faye main.fy
 - `-e`, `--eval`: Evaluate a string
 - `-l`, `--lex`: Print the lexer output
 - `-a`, `--ast`: Print the parser output
-- `-m`, `--matching-brackets`: Highlight matching brackets
+- `-m`, `--matching-brackets`: Highlight matching brackets in the repl
 
 `faye -h` for more information.
 
 ## License
 
-Source code is licensed under [Apache-2.0](LICENSE). faye's logo by [fawn](https://x4.pm) and [rini](https://rinici.de) is licensed under [CC-BY-NC-SA-4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
+Source code is licensed under [Apache-2.0](LICENSE). faye's logo by [fawn](https://fawn.moe) and [rini](https://rinici.de) is licensed under [CC-BY-NC-SA-4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
