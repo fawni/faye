@@ -126,6 +126,17 @@ impl Scope {
 
             Ok(Expr::Vector(vec))
         });
+        scope.register("len", |ctx, args| {
+            let [node] = ctx.get_n(args)?;
+            let len = match ctx.eval(node)? {
+                Expr::List(v) | Expr::Vector(v) => v.len() as f64,
+                Expr::String(s) => s.len() as f64,
+                Expr::Nil => 0.,
+                e => return Err(ctx.error(ErrorKind::InvalidArgument(e))),
+            };
+
+            Ok(Expr::Number(len))
+        });
         scope.register("nth", |ctx, args| {
             let (coll, nth, default) = match ctx.get_n(args) {
                 Ok([coll, nth, default]) => (ctx.eval(coll)?, ctx.eval(nth)?, ctx.eval(default)?),
