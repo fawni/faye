@@ -5,15 +5,21 @@
 ### Features
 
 - ✨ feature: special vars (codeberg #10)
+- ✨ feature: add `len` function
 
 ### Fixes
 
 - 🐛 fix: downgrade wasm-bindgen to supported trunk ver
 - 🐛 fix(web): update website source code url
+- 🐛 fix: make parse-num accept numbers
 
 ### Miscellaneous
 
 - 🔨 chore: add changelog
+- 🔨 chore(readme): link to changelog
+- 🔨 chore: wording
+- 🔨 chore: simpler sample
+- 🔨 chore(readme): add missing flag
 
 ### Styling
 

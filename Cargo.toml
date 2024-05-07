@@ -20,17 +20,18 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-clap = { version = "4.4.7", features = ["derive", "cargo"], optional = true }
-pomprt = { version = "0.4.0", optional = true }
+clap = { version = "4.5.4", features = ["derive", "cargo"], optional = true }
+pomprt = { version = "0.5.3", optional = true }
 
 faye-lsp = { version = "0.2.0", optional = true }
-tokio = { version = "1.33.0", features = ["full"], optional = true }
+tokio = { version = "1.37.0", features = ["full"], optional = true }
 
 [features]
-default = ["dep:clap", "dep:pomprt"]
+default = ["cli"]
 # TODO: make lsp default when it's ready
-# default = ["dep:clap", "dep:pomprt", "lsp"]
+# default = ["cli", "lsp"]
 
+cli = ["dep:clap", "dep:pomprt"]
 lsp = ["dep:faye-lsp", "dep:tokio"]
 
 [profile.release]
@@ -38,3 +39,6 @@ strip = true
 panic = 'abort'
 codegen-units = 1
 lto = true
+
+[patch.crates-io]
+pomprt = { git = "https://codeberg.org/faye/pomprt", rev = "1643943507201d878f7e88929ddafb92a8a5fc27"}

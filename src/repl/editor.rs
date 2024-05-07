@@ -50,7 +50,7 @@ impl pomprt::Editor for FayeEditor {
                 .filter_map(|Symbol(s)| s.starts_with(word).then_some(s))
                 .collect();
 
-            Some(pomprt::Completion(start, end, results))
+            Some(pomprt::Completion(start..end, results))
         } else {
             None
         }
