@@ -20,6 +20,7 @@
 - 🔨 chore: wording
 - 🔨 chore: simpler sample
 - 🔨 chore(readme): add missing flag
+- 📦 deps: use pomprt fork, bump deps
 
 ### Styling
 

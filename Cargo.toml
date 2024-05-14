@@ -41,4 +41,4 @@ codegen-units = 1
 lto = true
 
 [patch.crates-io]
-pomprt = { git = "https://codeberg.org/faye/pomprt", rev = "1643943507201d878f7e88929ddafb92a8a5fc27"}
+pomprt = { git = "https://codeberg.org/faye/pomprt", rev = "17f7940885c5a48083c11ad2a19674253bd2b14c"}
