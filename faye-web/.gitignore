@@ -1,0 +1,2 @@
+# messes up wasm-bindgen linking, is not needed for wasm.
+Cargo.lock
