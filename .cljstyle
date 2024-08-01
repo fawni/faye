@@ -1,0 +1,2 @@
+{:files
+ {:extensions #{"fy" "faye"}, :ignore #{".git"}}}
