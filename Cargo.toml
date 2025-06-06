@@ -20,11 +20,11 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-clap = { version = "4.5.13", features = ["derive", "cargo"], optional = true }
+clap = { version = "4.5.39", features = ["derive", "cargo"], optional = true }
 pomprt = { version = "0.5.3", optional = true }
 
 faye-lsp = { version = "0.2.0", optional = true }
-tokio = { version = "1.39.2", features = ["full"], optional = true }
+tokio = { version = "1.45.1", features = ["full"], optional = true }
 
 [features]
 default = ["cli"]
