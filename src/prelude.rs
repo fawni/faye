@@ -6,4 +6,4 @@ pub use crate::lexer::{
 pub use crate::parser::{
     Error as ParserError, ErrorKind as ParserErrorKind, Node, NodeKind, Parser,
 };
-pub use crate::span::{Source, Location, Span};
+pub use crate::span::{Location, Source, Span};
