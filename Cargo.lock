@@ -218,7 +218,7 @@ checksum = "9b12c7bf8b9625a4e1e60bc82a88f12d900e2ece4da40e6f91cc66d6de7b778c"
 
 [[package]]
 name = "faye"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "clap",
  "faye-lsp",
@@ -242,7 +242,7 @@ dependencies = [
 name = "faye-web"
 version = "0.1.0"
 dependencies = [
- "faye 0.6.1",
+ "faye 0.6.2",
  "maud",
  "wasm-bindgen",
  "web-sys",
