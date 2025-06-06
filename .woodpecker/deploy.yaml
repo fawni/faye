@@ -12,7 +12,8 @@ steps:
   build:
     image: rust
     directory: faye-web
-    environment: [CARGO_TERM_COLOR=always]
+    environment: 
+      CARGO_TERM_COLOR: always
     commands:
       - rustup target add wasm32-unknown-unknown
       - curl -sSL https://github.com/trunk-rs/trunk/releases/download/v0.20.2/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
@@ -21,7 +22,9 @@ steps:
   pages:
     image: alpine/git
     directory: faye-web
-    secrets: [CODEBERG_TOKEN]
+    environment:
+      CODEBERG_TOKEN:
+        from_secret: CODEBERG_TOKEN
     commands:
       - git config --global user.name "faye"
       - git config --global user.email "faye@rinici.de"
@@ -37,7 +40,9 @@ steps:
   vercel:
     image: node
     directory: faye-web
-    secrets: [VERCEL_TOKEN]
+    environment:
+      VERCEL_TOKEN:
+        from_secret: VERCEL_TOKEN
     commands:
       - npm i -g vercel
       - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
