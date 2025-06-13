@@ -2,6 +2,23 @@
 
 ## [unreleased]
 
+### Deployment
+
+- 🚀 deploy: fix deploy config and update trunk
+- 🚀 deploy: oops
+
+### Fixes
+
+- 🐛 fix(repl): change autoparen behaviour
+- 🐛 fix(ci): use updated woodpecker syntax
+
+### Miscellaneous
+
+- 📦 deps: bump
+- 🔨 chore: bump version
+
+## [0.6.1] - 2024-08-01
+
 ### Features
 
 - ✨ feature: special vars (codeberg #10)
@@ -21,6 +38,7 @@
 - 🔨 chore: simpler sample
 - 🔨 chore(readme): add missing flag
 - 📦 deps: use pomprt fork, bump deps
+- 📦 deps: bump pomprt
 
 ### Styling
 
@@ -30,6 +48,10 @@
 
 - ✅ test: upload test coverage to codecov
 - ✅ test: nvm actually codecov is bloat anyway
+
+### Chore
+
+- Rename `samples` to `examples`, bump version
 
 ## [0.6.0] - 2023-11-08
 
