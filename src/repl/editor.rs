@@ -25,7 +25,7 @@ impl pomprt::Editor for FayeEditor {
 
         *cursor += c.len_utf8();
 
-        if (c == '(' || c == '[')
+        if matches!(c, '(' | '[')
             && !buffer[*cursor..]
                 .starts_with(|c: char| !c.is_ascii_whitespace() && !matches!(c, ')' | ']'))
         {
