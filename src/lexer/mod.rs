@@ -29,7 +29,7 @@ pub struct Lexer<'a> {
 impl Lexer<'_> {
     /// Create a new lexer instance from a string
     #[must_use]
-    pub fn new(input: &str) -> Lexer {
+    pub fn new(input: &str) -> Lexer<'_> {
         let source = Arc::new(Source::new(None, input.to_owned()));
 
         Lexer {

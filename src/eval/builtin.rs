@@ -10,6 +10,7 @@ use crate::prelude::{Node, Symbol};
 pub type Callback = fn(&mut Context, &[Node]) -> Result<Expr, Error>;
 
 /// A builtin function
+#[allow(unpredictable_function_pointer_comparisons)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BuiltinFn {
     pub(crate) name: Symbol,

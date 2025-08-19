@@ -61,6 +61,15 @@ impl Scope {
                     .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?,
             ))
         });
+        scope.register("%", |ctx, args| {
+            Ok(Expr::Number(
+                ctx.eval_args(args)
+                    .and_then(|v| ctx.downcast_all::<f64>(&v))?
+                    .into_iter()
+                    .reduce(|acc, x| acc % x)
+                    .ok_or_else(|| ctx.error(ErrorKind::MissingArguments))?,
+            ))
+        });
         scope.register("=", |ctx, args| {
             let args = ctx.eval_args(args)?;
             Ok(Expr::Bool(args.iter().all(|n| n.eq(&args[0]))))
