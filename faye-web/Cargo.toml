@@ -1,6 +1,6 @@
 [package]
 name = "faye-web"
-version = "0.1.0"
+version = "0.6.3"
 readme = "README.md"
 authors.workspace = true
 license.workspace = true

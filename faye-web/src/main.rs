@@ -98,6 +98,7 @@ fn main() {
                             span style="color: var(--thorns-green)" {
                                 "  help" br;
                                 "  clear" br;
+                                "  version" br;
                                 "  symbols" br;
                             }
                         },
@@ -114,6 +115,9 @@ fn main() {
                                 }
                             }
                             br;
+                        },
+                        "version" => html! {
+                            (env!("CARGO_PKG_VERSION")) br;
                         },
                         s => eval(&mut ctx, s),
                     };
