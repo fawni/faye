@@ -17,7 +17,7 @@ steps:
       CARGO_TERM_COLOR: always
     commands:
       - rustup target add wasm32-unknown-unknown
-      - curl -sSL https://github.com/trunk-rs/trunk/releases/download/v0.20.2/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
+      - curl -sSL https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
       - ./trunk build --release
 
   pages:
