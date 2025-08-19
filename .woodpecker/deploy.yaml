@@ -4,6 +4,7 @@ when:
   path:
     include:
       - "faye-web/src/*.rs"
+      - "src/*.rs"
       - "faye-web/assets/**/*"
       - "faye-web/index.html"
       - "faye-web/Cargo.toml"
