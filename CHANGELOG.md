@@ -1,6 +1,25 @@
 # Changelog
 
-## [unreleased]
+## [0.6.3] - 2025-08-19
+
+### Documentation
+
+- 📝 doc(changelog): add v0.6.2 changes
+
+### Features
+
+- ✨ feature: add `%`
+
+### Fixes
+
+- 🐛 fix(ci): use updated woodpecker syntax
+
+### Miscellaneous
+
+- 🔨 chore: matches
+- 📦 deps: update crates, bump version
+
+## [0.6.2] - 2025-06-06
 
 ### Deployment
 
@@ -10,7 +29,6 @@
 ### Fixes
 
 - 🐛 fix(repl): change autoparen behaviour
-- 🐛 fix(ci): use updated woodpecker syntax
 
 ### Miscellaneous
 
@@ -311,4 +329,6 @@
 ### Testing
 
 - ✅ test: add more tests
+
+## [0.0.1] - 2023-08-27
 
