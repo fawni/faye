@@ -22,7 +22,7 @@ pub fn eval(ctx: &mut Context, expr: &str) -> Markup {
     html! {
         @for n in ast {
             @match ctx.eval(&n) {
-                Ok(expr) => (expr) "\n",
+                Ok(expr) => { (expr) "\n" },
                 Err(err) => (display_error(&err.span, &err)),
             }
         }

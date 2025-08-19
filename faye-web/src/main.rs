@@ -108,8 +108,8 @@ fn main() {
                                 @for (i, sym) in ctx.list_globals().into_iter().enumerate() {
                                     @let s = sym.0;
                                     @match (12_usize).checked_sub(s.chars().count()) {
-                                        Some(w) if i % 4 != 3 => (s) (" ".repeat(w + 4)),
-                                        _ => (s) br;
+                                        Some(w) if i % 4 != 3 => { (s) (" ".repeat(w + 4)) },
+                                        _ => { (s) br; }
                                     }
                                 }
                             }
